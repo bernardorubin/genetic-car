@@ -1,13 +1,9 @@
-import { useState } from 'react';
+import type { FloorMode, GravityKey } from '../state/types';
+import { useSim } from '../state/useSim';
+import { FitnessGraph } from './FitnessGraph';
 
 export function Sidebar() {
-  // Local state is scaffolding only — wired to the GA in the next chunk.
-  const [mutationRate, setMutationRate] = useState(0.05);
-  const [mutationSize, setMutationSize] = useState(0.2);
-  const [elites, setElites] = useState(2);
-  const [gravity, setGravity] = useState('earth');
-  const [floor, setFloor] = useState('fixed');
-  const [seed, setSeed] = useState('');
+  const { settings, stats, setSetting, newPopulation, regenWorld, save, restore, toggleReplay } = useSim();
 
   return (
     <div className="p-5 flex flex-col gap-6">
@@ -15,39 +11,39 @@ export function Sidebar() {
         <SectionHeading>evolution</SectionHeading>
         <Slider
           label="mutation rate"
-          value={mutationRate}
+          value={settings.mutationRate}
           min={0}
           max={1}
           step={0.01}
           format={(v) => `${(v * 100).toFixed(0)}%`}
-          onChange={setMutationRate}
+          onChange={(v) => setSetting('mutationRate', v)}
         />
         <Slider
           label="mutation size"
-          value={mutationSize}
+          value={settings.mutationSize}
           min={0}
           max={1}
           step={0.01}
           format={(v) => `${(v * 100).toFixed(0)}%`}
-          onChange={setMutationSize}
+          onChange={(v) => setSetting('mutationSize', v)}
         />
         <Slider
           label="elite clones"
-          value={elites}
+          value={settings.eliteCount}
           min={0}
           max={10}
           step={1}
           format={(v) => `${v}`}
-          onChange={setElites}
+          onChange={(v) => setSetting('eliteCount', v)}
         />
       </section>
 
       <section>
         <SectionHeading>world</SectionHeading>
-        <Select
+        <Select<GravityKey>
           label="gravity"
-          value={gravity}
-          onChange={setGravity}
+          value={settings.gravity}
+          onChange={(v) => setSetting('gravity', v)}
           options={[
             ['moon', 'Moon  ·  1.62'],
             ['mars', 'Mars  ·  3.71'],
@@ -55,10 +51,10 @@ export function Sidebar() {
             ['jupiter', 'Jupiter · 24.79'],
           ]}
         />
-        <Select
+        <Select<FloorMode>
           label="floor"
-          value={floor}
-          onChange={setFloor}
+          value={settings.floor}
+          onChange={(v) => setSetting('floor', v)}
           options={[
             ['fixed', 'fixed terrain'],
             ['mutable', 'mutates per gen'],
@@ -70,40 +66,70 @@ export function Sidebar() {
           </label>
           <div className="flex gap-2">
             <input
-              value={seed}
-              onChange={(e) => setSeed(e.target.value)}
+              value={settings.seed}
+              onChange={(e) => setSetting('seed', e.target.value)}
               placeholder="auto"
               className="flex-1 hairline rounded-md bg-black/30 px-2.5 py-1.5 text-sm font-mono text-ink-50 placeholder:text-ink-500 focus:outline-none focus:border-accent-500/60"
             />
-            <button className="hairline rounded-md px-3 py-1.5 text-xs font-mono text-ink-100 hover:bg-white/5 transition">
+            <button
+              onClick={regenWorld}
+              className="hairline rounded-md px-3 py-1.5 text-xs font-mono text-ink-100 hover:bg-white/5 transition"
+            >
               regen
             </button>
           </div>
+          <p className="mt-1.5 text-[10px] font-mono text-ink-500">
+            same seed · same terrain · same evolution
+          </p>
         </div>
       </section>
 
       <section>
         <SectionHeading>population</SectionHeading>
         <div className="grid grid-cols-2 gap-2">
-          <ActionButton>new pop</ActionButton>
-          <ActionButton>view top</ActionButton>
-          <ActionButton>save</ActionButton>
-          <ActionButton>restore</ActionButton>
+          <ActionButton onClick={newPopulation}>new pop</ActionButton>
+          <ActionButton
+            onClick={toggleReplay}
+            disabled={!stats.hasBestGenome}
+            highlight={stats.replay}
+          >
+            {stats.replay ? 'exit replay' : 'view top'}
+          </ActionButton>
+          <ActionButton onClick={save}>save</ActionButton>
+          <ActionButton onClick={restore} disabled={!stats.hasSaved}>
+            restore
+          </ActionButton>
         </div>
+        {stats.replay && (
+          <p className="mt-2 text-[11px] font-mono text-amber-400">
+            replay · running best ever · gens paused
+          </p>
+        )}
       </section>
 
       <section>
         <SectionHeading>render</SectionHeading>
-        <div className="flex items-center justify-between hairline rounded-md px-3 py-2">
+        <button
+          onClick={() => setSetting('render', !settings.render)}
+          className="w-full flex items-center justify-between hairline rounded-md px-3 py-2 hover:bg-white/5 transition"
+        >
           <span className="text-sm text-ink-100">draw simulation</span>
-          <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-accent-400">
-            on
+          <span
+            className={`text-[10px] font-mono uppercase tracking-[0.18em] ${
+              settings.render ? 'text-accent-400' : 'text-amber-400'
+            }`}
+          >
+            {settings.render ? 'on' : 'off · fast'}
           </span>
-        </div>
+        </button>
         <p className="mt-2 text-[11px] text-ink-500 leading-relaxed">
-          turn off to let the population race in the background at hundreds of
-          generations per minute.
+          turn off to let the population race in the background at higher speed.
         </p>
+      </section>
+
+      <section>
+        <SectionHeading>fitness · last 100 gens</SectionHeading>
+        <FitnessGraph />
       </section>
     </div>
   );
@@ -153,16 +179,16 @@ function Slider({
   );
 }
 
-function Select({
+function Select<T extends string>({
   label,
   value,
   options,
   onChange,
 }: {
   label: string;
-  value: string;
-  options: [string, string][];
-  onChange: (v: string) => void;
+  value: T;
+  options: [T, string][];
+  onChange: (v: T) => void;
 }) {
   return (
     <div className="mb-3 last:mb-0">
@@ -171,7 +197,7 @@ function Select({
       </label>
       <select
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => onChange(e.target.value as T)}
         className="w-full hairline rounded-md bg-black/30 px-2.5 py-1.5 text-sm font-mono text-ink-50 focus:outline-none focus:border-accent-500/60"
       >
         {options.map(([v, l]) => (
@@ -184,9 +210,30 @@ function Select({
   );
 }
 
-function ActionButton({ children }: { children: React.ReactNode }) {
+function ActionButton({
+  children,
+  onClick,
+  disabled,
+  highlight,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  highlight?: boolean;
+}) {
   return (
-    <button className="hairline rounded-md px-3 py-2 text-xs font-mono text-ink-100 hover:bg-white/5 hover:border-white/15 transition">
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`hairline rounded-md px-3 py-2 text-xs font-mono transition
+        ${
+          disabled
+            ? 'text-ink-500 cursor-not-allowed opacity-60'
+            : highlight
+              ? 'text-amber-400 border-amber-400/40 bg-amber-400/5 hover:bg-amber-400/10'
+              : 'text-ink-100 hover:bg-white/5 hover:border-white/15'
+        }`}
+    >
       {children}
     </button>
   );
