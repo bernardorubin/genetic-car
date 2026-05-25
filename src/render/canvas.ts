@@ -158,6 +158,28 @@ function drawCar(ctx: CanvasRenderingContext2D, car: Car, isLeader: boolean) {
   ctx.fill();
   ctx.stroke();
 
+  // Arms (visual struts) — drawn in the chassis's transform so they rotate
+  // with the car. There's no physics body backing them; the wheel is held in
+  // place by the revolute joint to the chassis at an offset position.
+  for (let w = 0; w < car.arms.length; w++) {
+    const arm = car.arms[w];
+    if (!arm) continue;
+    const a = transform(xf.p, xf.q.c, xf.q.s, arm.anchorLocal);
+    const b = transform(xf.p, xf.q.c, xf.q.s, arm.wheelLocal);
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.strokeStyle = car.alive
+      ? isLeader
+        ? 'rgba(251, 191, 36, 0.85)'
+        : 'rgba(125, 211, 252, 0.7)'
+      : 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 0.09;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+  }
+
   // Wheels (variable count per car: 1..MAX_WHEELS)
   for (let w = 0; w < car.wheels.length; w++) {
     const wheel = car.wheels[w];
@@ -196,7 +218,12 @@ function drawDistanceMarkers(
   ctx.textAlign = 'left';
 }
 
-function transform(p: Vec2, c: number, s: number, v: Vec2): { x: number; y: number } {
+function transform(
+  p: Vec2,
+  c: number,
+  s: number,
+  v: { x: number; y: number },
+): { x: number; y: number } {
   return {
     x: c * v.x - s * v.y + p.x,
     y: s * v.x + c * v.y + p.y,

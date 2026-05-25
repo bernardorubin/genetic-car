@@ -60,7 +60,7 @@ Population rebuild triggers: changing **seed**, **gravity**, **floor**, **roughn
 
 ## Genome (working spec)
 
-25 genes per car, all normalized floats in [0, 1] unless noted. Each gene maps through a `decode*` helper in `genome.ts` into a physical value.
+37 genes per car, all normalized floats in [0, 1] unless noted. Each gene maps through a `decode*` helper in `genome.ts` into a physical value.
 
 | Gene group | Count | Stored as | Decoded range | Notes |
 |---|---|---|---|---|
@@ -69,11 +69,34 @@ Population rebuild triggers: changing **seed**, **gravity**, **floor**, **roughn
 | Wheel vertex | 4 | `Uint8Array` | 0–7 | Which chassis vertex each wheel attaches to. |
 | Wheel density | 4 | `Float32Array` | 40 – 120 kg/m² | Per wheel. |
 | Wheel active | 4 | `Uint8Array` | 0 / 1 | `ensureValid()` guarantees ≥1 active so a car can move. GA discovers 1/2/3/4-wheel designs on its own. |
+| Wheel arm | 4 | `Float32Array` | **0m – 1m** | Visual-only strut length. If above `ARM_RENDER_MIN`, the wheel is held at a position offset from the chassis vertex along the outward normal. A line is drawn in the renderer; no physics body backs the arm. |
+| Wheel spring | 4 | `Float32Array` | 2 – 10 Hz | Reserved for future shock-absorber support — currently ignored (RevoluteJoint is rigid). See "Deferred" below. |
+| Wheel damping | 4 | `Float32Array` | 0.25 – 0.85 | Same as above. |
 | Chassis density | 1 | `number` | 30 – 300 kg/m² | |
 
 Wheel motors run at a constant torque/speed (not evolved) so improvements come from morphology, not control.
 
 When the genome shape changes, bump the `KEY` version in `src/sim/storage.ts` — old saves are silently dropped.
+
+## Wheel arms (visual struts)
+
+Each wheel slot has an `armLength` gene. If the decoded value is ≥ `ARM_RENDER_MIN`, the wheel center is placed at `vertex + outwardNormal × armLength` — i.e., further out from the chassis vertex.
+
+Physically, the wheel is still attached to the chassis by a single `RevoluteJoint` at the wheel center; there's no separate rod body. **A first attempt used a welded rod body + WheelJoint suspension and crashed planck's TOI solver** — the rod-weld-revolute chain became degenerate. The current approach is stable: physics behave exactly like a wheel directly on the chassis, just at an offset position. The renderer draws a line from the chassis vertex to the wheel center in the chassis's transform.
+
+## Numerical-blow-up guards
+
+Genomes with wide chassis ranges + long arms occasionally produce configurations the constraint solver can't stabilize, sending a body's position to infinity. Three guards prevent that from poisoning the rest of the simulation:
+
+1. `SimWorld.step()` kills any car whose chassis x becomes non-finite or > 100,000 m.
+2. `Population.advanceGeneration()` clamps each car's score to 0 if non-finite or > 1e6.
+3. `storage.getTopScore()` and `updateTopScore()` reject non-finite / > 1e6 values, purging the stored key if a stale corrupt value is found.
+
+These are last-line defences — the constraint solver should be the layer that prevents these states. Don't remove the guards without first investigating the underlying physics bug.
+
+## Deferred work
+
+- **Shock absorbers via `WheelJoint`**: the genome already carries `wheelSpring` and `wheelDamping` genes, but `car.ts` currently uses `RevoluteJoint` for stability. Re-enabling needs gentler spring/damping ranges, possibly lower motor torque, and careful interaction with the visual-only arm setup.
 
 ## Terrain
 

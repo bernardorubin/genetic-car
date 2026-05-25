@@ -1,11 +1,11 @@
 import type { Genome } from './genome';
 
-// v2 schema adds wheelActive[] for up-to-4 wheels; v1 saves are silently dropped
-// (old key no longer read, hasSavedPopulation returns false until a v2 save exists).
-const KEY = 'genetic-cars:saved-pop:v2';
+// v3 schema adds wheelArm/wheelSpring/wheelDamping per wheel slot (legs + shocks).
+// Earlier saves are silently dropped — hasSavedPopulation() returns false until a v3 save exists.
+const KEY = 'genetic-cars:saved-pop:v3';
 // Separate slot — written automatically after every generation so a refresh resumes.
 // Manual save uses KEY; auto-save uses AUTO_KEY. The two never overwrite each other.
-const AUTO_KEY = 'genetic-cars:autosave:v2';
+const AUTO_KEY = 'genetic-cars:autosave:v3';
 // All-time best distance. Never wiped by new-pop, restore, or seed changes.
 const TOP_KEY = 'genetic-cars:top-score:v1';
 
@@ -15,6 +15,9 @@ interface SerializedGenome {
   wheelVertex: number[];
   wheelDensity: number[];
   wheelActive: number[];
+  wheelArm: number[];
+  wheelSpring: number[];
+  wheelDamping: number[];
   chassisDensity: number;
 }
 
@@ -40,6 +43,9 @@ function toSerialized(g: Genome): SerializedGenome {
     wheelVertex: Array.from(g.wheelVertex),
     wheelDensity: Array.from(g.wheelDensity),
     wheelActive: Array.from(g.wheelActive),
+    wheelArm: Array.from(g.wheelArm),
+    wheelSpring: Array.from(g.wheelSpring),
+    wheelDamping: Array.from(g.wheelDamping),
     chassisDensity: g.chassisDensity,
   };
 }
@@ -51,6 +57,9 @@ function fromSerialized(s: SerializedGenome): Genome {
     wheelVertex: Uint8Array.from(s.wheelVertex),
     wheelDensity: Float32Array.from(s.wheelDensity),
     wheelActive: Uint8Array.from(s.wheelActive),
+    wheelArm: Float32Array.from(s.wheelArm),
+    wheelSpring: Float32Array.from(s.wheelSpring),
+    wheelDamping: Float32Array.from(s.wheelDamping),
     chassisDensity: s.chassisDensity,
   };
 }
@@ -138,12 +147,21 @@ export function getTopScore(): number {
   const raw = localStorage.getItem(TOP_KEY);
   if (!raw) return 0;
   const n = Number(raw);
-  return Number.isFinite(n) ? n : 0;
+  // Reject stale corrupt values from earlier sessions that lacked the
+  // updateTopScore guard — anything non-finite or implausibly large is dropped.
+  if (!Number.isFinite(n) || n < 0 || n > 1e6) {
+    try { localStorage.removeItem(TOP_KEY); } catch { /* ignore */ }
+    return 0;
+  }
+  return n;
 }
 
-/** Update top score if the candidate beats the stored one. Returns the (possibly unchanged) new top. */
+/** Update top score if the candidate beats the stored one. Returns the (possibly unchanged) new top.
+ * Rejects non-finite / negative / absurdly-large values — protects against
+ * a single physics blow-up corrupting the all-time stat. */
 export function updateTopScore(candidate: number): number {
   const current = getTopScore();
+  if (!Number.isFinite(candidate) || candidate < 0 || candidate > 1e6) return current;
   if (candidate > current) {
     try {
       localStorage.setItem(TOP_KEY, String(candidate));

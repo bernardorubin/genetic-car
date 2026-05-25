@@ -86,6 +86,11 @@ export class Population {
       genome: this.genomes[i],
       score: c.maxX - c.startX,
     }));
+    // Sanitize: a car whose physics blew up could have a non-finite or absurdly large
+    // score. Drop those so they don't poison stats or seed selection.
+    for (const s of scored) {
+      if (!Number.isFinite(s.score) || s.score < 0 || s.score > 1e6) s.score = 0;
+    }
     const sortedByScore = [...scored].sort((a, b) => b.score - a.score);
     const best = sortedByScore[0]?.score ?? 0;
     const top10 = sortedByScore.slice(0, Math.min(10, sortedByScore.length));
@@ -189,7 +194,9 @@ export class Population {
     this.genomes = genomes.map(cloneGenome);
     this.generation = generation;
     this.history = [...history];
-    this.bestScore = bestScore;
+    // Guard against corrupt saved bestScore from a session with physics blow-ups.
+    this.bestScore =
+      Number.isFinite(bestScore) && bestScore >= 0 && bestScore < 1e6 ? bestScore : 0;
     this.bestGenome = bestGenome ? cloneGenome(bestGenome) : null;
     this.replayMode = false;
     this.savedGenomesBeforeReplay = null;

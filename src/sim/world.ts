@@ -59,6 +59,12 @@ export class SimWorld {
     for (const car of this.cars) {
       if (!car.alive) continue;
       const x = car.chassis.getPosition().x;
+      // Physics blow-up guard: if a body's position goes non-finite or beyond a
+      // sane traversal limit, kill the car so it can't poison stats or stall the gen.
+      if (!Number.isFinite(x) || x > 100000) {
+        car.alive = false;
+        continue;
+      }
       if (x > car.maxX + STALL_MIN_GAIN) {
         car.maxX = x;
         car.stallTicks = 0;

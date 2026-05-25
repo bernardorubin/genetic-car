@@ -2,6 +2,7 @@ import { Sidebar } from './ui/Sidebar';
 import { Hud } from './ui/Hud';
 import { SimCanvas } from './ui/SimCanvas';
 import { SimProvider } from './state/SimProvider';
+import { WorldBadge } from './ui/WorldBadge';
 
 export default function App() {
   return (
@@ -16,7 +17,8 @@ export default function App() {
               evolutionary 2D vehicle lab
             </span>
           </div>
-          <div className="flex items-center gap-2 text-xs font-mono text-ink-300">
+          <div className="flex items-center gap-3 text-xs font-mono text-ink-300">
+            <WorldBadge />
             <a
               href="https://github.com/bernardorubin/genetic-car"
               target="_blank"

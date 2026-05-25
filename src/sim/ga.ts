@@ -28,6 +28,9 @@ export function cloneGenome(g: Genome): Genome {
     wheelVertex: new Uint8Array(g.wheelVertex),
     wheelDensity: new Float32Array(g.wheelDensity),
     wheelActive: new Uint8Array(g.wheelActive),
+    wheelArm: new Float32Array(g.wheelArm),
+    wheelSpring: new Float32Array(g.wheelSpring),
+    wheelDamping: new Float32Array(g.wheelDamping),
     chassisDensity: g.chassisDensity,
   };
 }
@@ -67,6 +70,9 @@ function crossover(rng: Rng, a: Genome, b: Genome): Genome {
     if (rng() < 0.5) child.wheelVertex[w] = b.wheelVertex[w];
     if (rng() < 0.5) child.wheelDensity[w] = b.wheelDensity[w];
     if (rng() < 0.5) child.wheelActive[w] = b.wheelActive[w];
+    if (rng() < 0.5) child.wheelArm[w] = b.wheelArm[w];
+    if (rng() < 0.5) child.wheelSpring[w] = b.wheelSpring[w];
+    if (rng() < 0.5) child.wheelDamping[w] = b.wheelDamping[w];
   }
   if (rng() < 0.5) child.chassisDensity = b.chassisDensity;
   ensureValid(child);
@@ -99,6 +105,9 @@ function mutateGenome(rng: Rng, g: Genome, params: GAParams): Genome {
       }
     }
     if (rng() < mutationRate) out.wheelDensity[w] = mutateGene01(rng, out.wheelDensity[w], mutationSize);
+    if (rng() < mutationRate) out.wheelArm[w] = mutateGene01(rng, out.wheelArm[w], mutationSize);
+    if (rng() < mutationRate) out.wheelSpring[w] = mutateGene01(rng, out.wheelSpring[w], mutationSize);
+    if (rng() < mutationRate) out.wheelDamping[w] = mutateGene01(rng, out.wheelDamping[w], mutationSize);
     // Active-flip uses a softened rate — flipping a wheel on/off is a high-impact change.
     if (rng() < mutationRate * 0.5) out.wheelActive[w] = out.wheelActive[w] ? 0 : 1;
   }

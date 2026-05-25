@@ -21,8 +21,10 @@ bun run preview  # serve dist/ locally
 ## Features
 
 - **Up-to-4-wheel cars** — the GA evolves the wheel count on its own (each car has 4 slots, each with an "active" gene).
+- **Visible wheel arms / struts** — each wheel has an arm-length gene; high values place the wheel at the end of a visible strut for alien-looking designs.
 - **Wide chassis morphology** — each car has 8 polar chassis radii (0.1m – 1.8m, ~18× ratio) so evolved cars can grow real spikes and asymmetric blades, BoxCar2D-style — not just rounded hexagons.
-- **Independently randomized wheel sizes** — every wheel slot rolls its own radius (0.2m – 0.5m), density, and chassis attachment point.
+- **Independently randomized wheel sizes** — every wheel slot rolls its own radius (0.2m – 0.5m), density, chassis attachment point, and arm length.
+- **Named worlds** — every seed deterministically maps to a fun two-word name ("Velvet Vault", "Ember Drifter") shown in the header; your world is your world.
 - **Procedural terrain** that gets harder the farther a car travels (`difficultyRamp(x)`).
 - **Distance color tiers** — terrain shifts cyan → lime → amber → orange → rose → fuchsia at 80 / 200 / 400 / 650 / 1000 m so you can see how far your generations are pushing.
 - **Live controls** — mutation rate / size, elite clones, max gen length (default: **no limit**), gravity (Moon → Jupiter), fixed vs mutable floor, terrain roughness + max slope, world seed.
