@@ -1,5 +1,5 @@
 import { World as PlanckWorld, Vec2, Edge, type World as PlanckWorldType } from 'planck';
-import { generateTerrain, type Terrain } from './terrain';
+import { generateTerrain, type Terrain, type TerrainOptions } from './terrain';
 import { buildCar, type Car } from './car';
 import { randomGenome, type Genome, type Rng } from './genome';
 
@@ -25,9 +25,9 @@ export class SimWorld {
   /** wall-clock simulation ticks since reset */
   ticks = 0;
 
-  constructor(rng: Rng, gravity: number, genomes?: Genome[]) {
+  constructor(rng: Rng, gravity: number, terrainOpts: TerrainOptions, genomes?: Genome[]) {
     this.world = new PlanckWorld(new Vec2(0, -gravity));
-    this.terrain = generateTerrain(rng);
+    this.terrain = generateTerrain(rng, terrainOpts);
     this.buildTerrainBodies();
     const seeds = genomes ?? [randomGenome(rng)];
     for (const g of seeds) {

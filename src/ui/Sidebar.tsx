@@ -60,6 +60,27 @@ export function Sidebar() {
             ['mutable', 'mutates per gen'],
           ]}
         />
+        <Slider
+          label="roughness"
+          value={settings.roughness}
+          min={0}
+          max={1}
+          step={0.01}
+          format={(v) => `${(v * 100).toFixed(0)}%`}
+          onChange={(v) => setSetting('roughness', v)}
+        />
+        <Slider
+          label="max slope"
+          value={settings.maxSlope}
+          min={0}
+          max={1}
+          step={0.01}
+          format={(v) => `${(v * 100).toFixed(0)}%`}
+          onChange={(v) => setSetting('maxSlope', v)}
+        />
+        <p className="-mt-1 mb-3 text-[10px] font-mono text-ink-500">
+          terrain gets harder farther from spawn
+        </p>
         <div className="mt-3">
           <label className="block text-[10px] font-mono uppercase tracking-[0.18em] text-ink-500 mb-1.5">
             world seed

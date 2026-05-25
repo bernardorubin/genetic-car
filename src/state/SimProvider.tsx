@@ -38,7 +38,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
     settingsRef.current = settings;
   });
 
-  // Rebuild the Population when seed / gravity / floor changes.
+  // Rebuild the Population when seed / gravity / floor / terrain shape changes.
   // Mutation params come from the ref so live-tuning them doesn't trigger a reset.
   useEffect(() => {
     const cur = settingsRef.current;
@@ -47,6 +47,8 @@ export function SimProvider({ children }: { children: ReactNode }) {
       seed: settings.seed,
       gravity: GRAVITY_VALUES[settings.gravity],
       mutableFloor: settings.floor === 'mutable',
+      roughness: settings.roughness,
+      maxSlope: settings.maxSlope,
       ga: {
         mutationRate: cur.mutationRate,
         mutationSize: cur.mutationSize,
@@ -60,7 +62,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
       pop.loadGenomes(saved.genomes, saved.generation, saved.history);
     }
     // The RAF loop publishes fresh stats on its next tick.
-  }, [settings.seed, settings.gravity, settings.floor]);
+  }, [settings.seed, settings.gravity, settings.floor, settings.roughness, settings.maxSlope]);
 
   // Push live GA params into the running population without resetting it.
   useEffect(() => {

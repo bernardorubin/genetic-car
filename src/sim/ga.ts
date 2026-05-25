@@ -1,5 +1,7 @@
 import {
   CHASSIS_VERTICES,
+  MAX_WHEELS,
+  ensureValid,
   randomGenome,
   type Genome,
   type Rng,
@@ -25,6 +27,7 @@ export function cloneGenome(g: Genome): Genome {
     wheelRadii: new Float32Array(g.wheelRadii),
     wheelVertex: new Uint8Array(g.wheelVertex),
     wheelDensity: new Float32Array(g.wheelDensity),
+    wheelActive: new Uint8Array(g.wheelActive),
     chassisDensity: g.chassisDensity,
   };
 }
@@ -59,12 +62,14 @@ function crossover(rng: Rng, a: Genome, b: Genome): Genome {
   for (let i = 0; i < CHASSIS_VERTICES; i++) {
     if (rng() < 0.5) child.chassis[i] = b.chassis[i];
   }
-  for (let w = 0; w < 2; w++) {
+  for (let w = 0; w < MAX_WHEELS; w++) {
     if (rng() < 0.5) child.wheelRadii[w] = b.wheelRadii[w];
     if (rng() < 0.5) child.wheelVertex[w] = b.wheelVertex[w];
     if (rng() < 0.5) child.wheelDensity[w] = b.wheelDensity[w];
+    if (rng() < 0.5) child.wheelActive[w] = b.wheelActive[w];
   }
   if (rng() < 0.5) child.chassisDensity = b.chassisDensity;
+  ensureValid(child);
   return child;
 }
 
@@ -82,7 +87,7 @@ function mutateGenome(rng: Rng, g: Genome, params: GAParams): Genome {
   for (let i = 0; i < CHASSIS_VERTICES; i++) {
     if (rng() < mutationRate) out.chassis[i] = mutateGene01(rng, out.chassis[i], mutationSize);
   }
-  for (let w = 0; w < 2; w++) {
+  for (let w = 0; w < MAX_WHEELS; w++) {
     if (rng() < mutationRate) out.wheelRadii[w] = mutateGene01(rng, out.wheelRadii[w], mutationSize);
     if (rng() < mutationRate) {
       // Wheel vertex is integer 0..7 — bigger mutationSize == bigger random jump
@@ -94,8 +99,11 @@ function mutateGenome(rng: Rng, g: Genome, params: GAParams): Genome {
       }
     }
     if (rng() < mutationRate) out.wheelDensity[w] = mutateGene01(rng, out.wheelDensity[w], mutationSize);
+    // Active-flip uses a softened rate — flipping a wheel on/off is a high-impact change.
+    if (rng() < mutationRate * 0.5) out.wheelActive[w] = out.wheelActive[w] ? 0 : 1;
   }
   if (rng() < mutationRate) out.chassisDensity = mutateGene01(rng, out.chassisDensity, mutationSize);
+  ensureValid(out);
   return out;
 }
 

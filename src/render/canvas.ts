@@ -2,8 +2,16 @@ import { Vec2 } from 'planck';
 import type { SimWorld } from '../sim/world';
 import type { Car } from '../sim/car';
 
-const COLOR_TERRAIN_FILL = 'rgba(56, 189, 248, 0.07)';
-const COLOR_TERRAIN_LINE = 'rgba(125, 211, 252, 0.55)';
+// Tier milestones in world meters. Cars reaching each zone unlock a new color
+// for the terrain surface ahead of them — a visceral sense of progress.
+const TERRAIN_TIERS: Array<{ x: number; line: string; fill: string }> = [
+  { x: 0,    line: 'rgba(125, 211, 252, 0.70)', fill: 'rgba(56, 189, 248, 0.08)'  }, // sky
+  { x: 80,   line: 'rgba(163, 230, 53, 0.80)',  fill: 'rgba(163, 230, 53, 0.08)'  }, // lime
+  { x: 200,  line: 'rgba(251, 191, 36, 0.85)',  fill: 'rgba(251, 191, 36, 0.09)'  }, // amber
+  { x: 400,  line: 'rgba(249, 115, 22, 0.90)',  fill: 'rgba(249, 115, 22, 0.10)'  }, // orange
+  { x: 650,  line: 'rgba(244, 63, 94, 0.95)',   fill: 'rgba(244, 63, 94, 0.11)'   }, // rose
+  { x: 1000, line: 'rgba(217, 70, 239, 1.00)',  fill: 'rgba(217, 70, 239, 0.12)'  }, // fuchsia
+];
 const COLOR_CHASSIS_FILL = 'rgba(125, 211, 252, 0.18)';
 const COLOR_CHASSIS_STROKE = 'rgba(125, 211, 252, 0.95)';
 const COLOR_CHASSIS_LEAD = 'rgba(251, 191, 36, 0.30)';
@@ -65,24 +73,65 @@ function drawTerrain(ctx: CanvasRenderingContext2D, sim: SimWorld) {
   const pts = sim.getTerrain().points;
   if (pts.length === 0) return;
 
-  // Filled area under the terrain (down to a very low y).
-  ctx.beginPath();
-  ctx.moveTo(pts[0].x, pts[0].y);
-  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  const first = pts[0];
   const last = pts[pts.length - 1];
+
+  // Horizontal gradient over the full terrain extent. createLinearGradient is
+  // in current-transform space, so this is in world meters — color stops snap
+  // to the actual tier x positions.
+  const span = last.x - first.x;
+  const fill = ctx.createLinearGradient(first.x, 0, last.x, 0);
+  const stroke = ctx.createLinearGradient(first.x, 0, last.x, 0);
+  for (const tier of TERRAIN_TIERS) {
+    if (tier.x > last.x) break;
+    const t = span > 0 ? (tier.x - first.x) / span : 0;
+    fill.addColorStop(Math.max(0, Math.min(1, t)), tier.fill);
+    stroke.addColorStop(Math.max(0, Math.min(1, t)), tier.line);
+  }
+
+  // Fill area under the terrain.
+  ctx.beginPath();
+  ctx.moveTo(first.x, first.y);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
   ctx.lineTo(last.x, -200);
-  ctx.lineTo(pts[0].x, -200);
+  ctx.lineTo(first.x, -200);
   ctx.closePath();
-  ctx.fillStyle = COLOR_TERRAIN_FILL;
+  ctx.fillStyle = fill;
   ctx.fill();
 
   // Surface stroke.
   ctx.beginPath();
-  ctx.moveTo(pts[0].x, pts[0].y);
+  ctx.moveTo(first.x, first.y);
   for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-  ctx.strokeStyle = COLOR_TERRAIN_LINE;
+  ctx.strokeStyle = stroke;
   ctx.lineWidth = 0.06;
   ctx.stroke();
+
+  drawTierMarkers(ctx, first.y, last.x);
+}
+
+function drawTierMarkers(ctx: CanvasRenderingContext2D, baseY: number, maxX: number) {
+  // Faint vertical tick + label at each milestone, in world space.
+  ctx.font = '0.7px ui-monospace, "JetBrains Mono", monospace';
+  ctx.textBaseline = 'top';
+  ctx.textAlign = 'center';
+  for (const tier of TERRAIN_TIERS) {
+    if (tier.x === 0 || tier.x > maxX) continue;
+    ctx.strokeStyle = tier.line.replace(/[\d.]+\)$/, '0.25)');
+    ctx.lineWidth = 0.03;
+    ctx.beginPath();
+    ctx.moveTo(tier.x, baseY + 8);
+    ctx.lineTo(tier.x, baseY - 200);
+    ctx.stroke();
+
+    // Label flipped manually because we're inside a y-inverted transform.
+    ctx.save();
+    ctx.translate(tier.x, baseY + 1.2);
+    ctx.scale(1, -1);
+    ctx.fillStyle = tier.line;
+    ctx.fillText(`${tier.x}m`, 0, 0);
+    ctx.restore();
+  }
 }
 
 function drawCar(ctx: CanvasRenderingContext2D, car: Car, isLeader: boolean) {
@@ -109,8 +158,8 @@ function drawCar(ctx: CanvasRenderingContext2D, car: Car, isLeader: boolean) {
   ctx.fill();
   ctx.stroke();
 
-  // Wheels
-  for (let w = 0; w < 2; w++) {
+  // Wheels (variable count per car: 1..MAX_WHEELS)
+  for (let w = 0; w < car.wheels.length; w++) {
     const wheel = car.wheels[w];
     const wxf = wheel.getTransform();
     const r = car.wheelRadii[w];

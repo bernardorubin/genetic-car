@@ -1,12 +1,15 @@
 import type { Genome } from './genome';
 
-const KEY = 'genetic-cars:saved-pop:v1';
+// v2 schema adds wheelActive[] for up-to-4 wheels; v1 saves are silently dropped
+// (old key no longer read, hasSavedPopulation returns false until a v2 save exists).
+const KEY = 'genetic-cars:saved-pop:v2';
 
 interface SerializedGenome {
   chassis: number[];
   wheelRadii: number[];
   wheelVertex: number[];
   wheelDensity: number[];
+  wheelActive: number[];
   chassisDensity: number;
 }
 
@@ -25,6 +28,7 @@ function toSerialized(g: Genome): SerializedGenome {
     wheelRadii: Array.from(g.wheelRadii),
     wheelVertex: Array.from(g.wheelVertex),
     wheelDensity: Array.from(g.wheelDensity),
+    wheelActive: Array.from(g.wheelActive),
     chassisDensity: g.chassisDensity,
   };
 }
@@ -35,6 +39,7 @@ function fromSerialized(s: SerializedGenome): Genome {
     wheelRadii: Float32Array.from(s.wheelRadii),
     wheelVertex: Uint8Array.from(s.wheelVertex),
     wheelDensity: Float32Array.from(s.wheelDensity),
+    wheelActive: Uint8Array.from(s.wheelActive),
     chassisDensity: s.chassisDensity,
   };
 }

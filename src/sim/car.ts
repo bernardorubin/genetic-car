@@ -1,6 +1,7 @@
 import { Vec2, Polygon, Circle, RevoluteJoint, type Body, type World } from 'planck';
 import {
   CHASSIS_VERTICES,
+  MAX_WHEELS,
   chassisVertexAngle,
   decodeChassisDensity,
   decodeChassisRadius,
@@ -11,12 +12,13 @@ import {
 
 export interface Car {
   chassis: Body;
-  wheels: [Body, Body];
-  joints: [RevoluteJoint, RevoluteJoint];
+  /** Realized wheels only (active === 1). Length 1..MAX_WHEELS. */
+  wheels: Body[];
+  joints: RevoluteJoint[];
+  /** Parallel to `wheels` — radius in meters for each realized wheel. */
+  wheelRadii: number[];
   /** chassis vertices in local coords — handy for the renderer */
   chassisVerts: Vec2[];
-  /** wheel radii in meters */
-  wheelRadii: [number, number];
   startX: number;
   alive: boolean;
   /** monotonic max-x reached so far — fitness */
@@ -25,7 +27,7 @@ export interface Car {
   stallTicks: number;
 }
 
-const MOTOR_SPEED = -18; // negative = forward (rolls toward +x on inverted-y world)
+const MOTOR_SPEED = -18;
 const MOTOR_TORQUE = 60;
 
 export function buildCar(world: World, genome: Genome, originX: number, originY: number): Car {
@@ -47,14 +49,15 @@ export function buildCar(world: World, genome: Genome, originX: number, originY:
     friction: 0.3,
     restitution: 0.02,
     // Negative groupIndex = bodies in same group never collide.
-    // Keeps wheels from colliding with their own chassis.
+    // Keeps wheels from colliding with their own chassis (and each other).
     filterGroupIndex: -1,
   });
 
-  const wheelBodies: Body[] = [];
-  const wheelJoints: RevoluteJoint[] = [];
+  const wheels: Body[] = [];
+  const joints: RevoluteJoint[] = [];
   const wheelRadii: number[] = [];
-  for (let w = 0; w < 2; w++) {
+  for (let w = 0; w < MAX_WHEELS; w++) {
+    if (!genome.wheelActive[w]) continue;
     const vi = genome.wheelVertex[w];
     const anchor = localVerts[vi];
     const radius = decodeWheelRadius(genome.wheelRadii[w]);
@@ -83,17 +86,17 @@ export function buildCar(world: World, genome: Genome, originX: number, originY:
       ),
     );
     if (!joint) throw new Error('createJoint returned null');
-    wheelBodies.push(wheelBody);
-    wheelJoints.push(joint);
+    wheels.push(wheelBody);
+    joints.push(joint);
     wheelRadii.push(radius);
   }
 
   return {
     chassis,
-    wheels: [wheelBodies[0], wheelBodies[1]],
-    joints: [wheelJoints[0], wheelJoints[1]],
+    wheels,
+    joints,
+    wheelRadii,
     chassisVerts: localVerts,
-    wheelRadii: [wheelRadii[0], wheelRadii[1]],
     startX: originX,
     alive: true,
     maxX: originX,
@@ -103,6 +106,5 @@ export function buildCar(world: World, genome: Genome, originX: number, originY:
 
 export function destroyCar(world: World, car: Car): void {
   world.destroyBody(car.chassis);
-  world.destroyBody(car.wheels[0]);
-  world.destroyBody(car.wheels[1]);
+  for (const w of car.wheels) world.destroyBody(w);
 }

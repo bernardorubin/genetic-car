@@ -16,6 +16,10 @@ export interface SimSettings {
   eliteCount: number;
   gravity: GravityKey;
   floor: FloorMode;
+  /** 0..1 — how chaotic the slope walk is per step */
+  roughness: number;
+  /** 0..1 — clamp on per-step slope (cliff allowance) */
+  maxSlope: number;
   seed: string;
   render: boolean;
 }
@@ -40,6 +44,8 @@ export const DEFAULT_SETTINGS: SimSettings = {
   eliteCount: 2,
   gravity: 'earth',
   floor: 'fixed',
+  roughness: 0.45,
+  maxSlope: 0.5,
   seed: '',
   render: true,
 };

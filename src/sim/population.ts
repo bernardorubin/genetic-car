@@ -14,6 +14,8 @@ export interface PopulationOptions {
   seed: string;
   gravity: number;
   mutableFloor: boolean;
+  roughness: number;
+  maxSlope: number;
   ga: GAParams;
 }
 
@@ -52,7 +54,15 @@ export class Population {
     this.terrainSeed = opts.seed + ':terrain';
     this.worldRng = seedrandom(this.terrainSeed);
     this.genomes = randomPopulation(this.gaRng, opts.size);
-    this.sim = new SimWorld(this.worldRng, opts.gravity, this.genomes);
+    this.sim = this.makeSim(this.genomes);
+  }
+
+  private terrainOpts() {
+    return { roughness: this.opts.roughness, maxSlope: this.opts.maxSlope };
+  }
+
+  private makeSim(genomes: Genome[], rng: Rng = this.worldRng): SimWorld {
+    return new SimWorld(rng, this.opts.gravity, this.terrainOpts(), genomes);
   }
 
   /** Run a single simulation tick. Returns true when a new generation just started. */
@@ -91,7 +101,7 @@ export class Population {
       this.terrainSeed = this.opts.seed + ':terrain:' + this.generation;
     }
     this.worldRng = seedrandom(this.terrainSeed);
-    this.sim = new SimWorld(this.worldRng, this.opts.gravity, this.genomes);
+    this.sim = this.makeSim(this.genomes);
   }
 
   /** Snapshot of live per-generation stats (in progress) for the HUD. */
@@ -129,18 +139,14 @@ export class Population {
     this.replayMode = false;
     this.savedGenomesBeforeReplay = null;
     this.worldRng = seedrandom(this.terrainSeed);
-    this.sim = new SimWorld(this.worldRng, this.opts.gravity, this.genomes);
+    this.sim = this.makeSim(this.genomes);
   }
 
   enterReplay(): void {
     if (!this.bestGenome || this.replayMode) return;
     this.savedGenomesBeforeReplay = this.genomes;
     this.replayMode = true;
-    this.sim = new SimWorld(
-      seedrandom(this.terrainSeed),
-      this.opts.gravity,
-      [cloneGenome(this.bestGenome)],
-    );
+    this.sim = this.makeSim([cloneGenome(this.bestGenome)], seedrandom(this.terrainSeed));
   }
 
   exitReplay(): void {
@@ -148,7 +154,7 @@ export class Population {
     this.replayMode = false;
     this.genomes = this.savedGenomesBeforeReplay;
     this.savedGenomesBeforeReplay = null;
-    this.sim = new SimWorld(seedrandom(this.terrainSeed), this.opts.gravity, this.genomes);
+    this.sim = this.makeSim(this.genomes, seedrandom(this.terrainSeed));
   }
 
   snapshot() {
@@ -168,6 +174,6 @@ export class Population {
     this.history = [...history];
     this.replayMode = false;
     this.savedGenomesBeforeReplay = null;
-    this.sim = new SimWorld(seedrandom(this.terrainSeed), this.opts.gravity, this.genomes);
+    this.sim = this.makeSim(this.genomes, seedrandom(this.terrainSeed));
   }
 }
