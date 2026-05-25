@@ -90,8 +90,13 @@ function mutateGene01(rng: Rng, value: number, size: number): number {
 function mutateGenome(rng: Rng, g: Genome, params: GAParams): Genome {
   const out = cloneGenome(g);
   const { mutationRate, mutationSize } = params;
+  // Chassis radii get a 1.5× mutation-size boost and slightly higher rate.
+  // Without this, the GA quickly smooths the chassis into uniform rounded
+  // shapes — the boost preserves spiky/asymmetric morphologies for longer.
+  const chassisSize = Math.min(1, mutationSize * 1.5);
+  const chassisRate = Math.min(1, mutationRate * 1.4);
   for (let i = 0; i < CHASSIS_VERTICES; i++) {
-    if (rng() < mutationRate) out.chassis[i] = mutateGene01(rng, out.chassis[i], mutationSize);
+    if (rng() < chassisRate) out.chassis[i] = mutateGene01(rng, out.chassis[i], chassisSize);
   }
   for (let w = 0; w < MAX_WHEELS; w++) {
     if (rng() < mutationRate) out.wheelRadii[w] = mutateGene01(rng, out.wheelRadii[w], mutationSize);

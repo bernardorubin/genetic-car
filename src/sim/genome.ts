@@ -28,13 +28,14 @@ export interface Genome {
 }
 
 // Physical decode ranges.
-// Wide chassis range (0.1..1.8m, ~18× ratio) lets the GA evolve dramatic
+// Wide chassis range (0.1..2.2m, ~22× ratio) lets the GA evolve dramatic
 // asymmetric shapes — long spikes next to deep concavities — instead of
-// converging on rounded hexagons. Original BoxCar2D uses similar latitude.
+// converging on rounded hexagons. Wheels also have a wide range so the GA
+// can pick small caster-style wheels OR big monster-truck-style wheels.
 export const CHASSIS_RADIUS_MIN = 0.1;
-export const CHASSIS_RADIUS_MAX = 1.8;
-export const WHEEL_RADIUS_MIN = 0.2;
-export const WHEEL_RADIUS_MAX = 0.5;
+export const CHASSIS_RADIUS_MAX = 2.2;
+export const WHEEL_RADIUS_MIN = 0.15;
+export const WHEEL_RADIUS_MAX = 0.85;
 export const CHASSIS_DENSITY_MIN = 30;
 export const CHASSIS_DENSITY_MAX = 300;
 export const WHEEL_DENSITY_MIN = 40;
@@ -56,9 +57,22 @@ export const DAMPING_MAX = 0.85;
  * at gen 0 with enough variance for 1/3/4-wheeler discovery. */
 const INITIAL_WHEEL_ACTIVE_P = 0.5;
 
+/**
+ * Bimodal initial distribution for chassis radii — each vertex tends to be
+ * either short or long, never medium. Produces visibly spiky gen-0 cars that
+ * resemble the BoxCar2D originals rather than smooth blobs. With a uniform
+ * distribution the average vertex sits at the middle of the range and shapes
+ * look interchangeable.
+ */
+function bimodalSample(rng: Rng): number {
+  const pickLong = rng() < 0.5;
+  const tail = rng() * 0.35; // 0..0.35
+  return pickLong ? 0.65 + tail : tail; // either [0, 0.35] or [0.65, 1.0]
+}
+
 export function randomGenome(rng: Rng): Genome {
   const chassis = new Float32Array(CHASSIS_VERTICES);
-  for (let i = 0; i < CHASSIS_VERTICES; i++) chassis[i] = rng();
+  for (let i = 0; i < CHASSIS_VERTICES; i++) chassis[i] = bimodalSample(rng);
   const wheelRadii = new Float32Array(MAX_WHEELS);
   const wheelVertex = new Uint8Array(MAX_WHEELS);
   const wheelDensity = new Float32Array(MAX_WHEELS);
@@ -67,13 +81,13 @@ export function randomGenome(rng: Rng): Genome {
   const wheelSpring = new Float32Array(MAX_WHEELS);
   const wheelDamping = new Float32Array(MAX_WHEELS);
   for (let i = 0; i < MAX_WHEELS; i++) {
-    wheelRadii[i] = rng();
+    // Wheels also bimodal so gen-0 has cars with very small AND very big wheels.
+    wheelRadii[i] = bimodalSample(rng);
     wheelVertex[i] = Math.floor(rng() * CHASSIS_VERTICES);
     wheelDensity[i] = rng();
     wheelActive[i] = rng() < INITIAL_WHEEL_ACTIVE_P ? 1 : 0;
-    // Bias initial arm length toward "short" — keeps gen-0 cars buildable
-    // while still letting the GA discover dramatic legged designs.
-    wheelArm[i] = rng() * 0.4;
+    // Wider initial arm range so some gen-0 cars have visible long legs.
+    wheelArm[i] = rng() * 0.7;
     wheelSpring[i] = rng();
     wheelDamping[i] = rng();
   }

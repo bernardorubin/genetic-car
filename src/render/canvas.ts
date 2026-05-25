@@ -136,26 +136,56 @@ function drawTierMarkers(ctx: CanvasRenderingContext2D, baseY: number, maxX: num
 
 function drawCar(ctx: CanvasRenderingContext2D, car: Car, isLeader: boolean) {
   const xf = car.chassis.getTransform();
-  // Chassis polygon
+
+  // Transform vertices once.
+  const verts = car.chassisVerts.map((v) => transform(xf.p, xf.q.c, xf.q.s, v));
+  const center = transform(xf.p, xf.q.c, xf.q.s, { x: 0, y: 0 });
+
+  // Color tokens for this car.
+  let fillBase: string;
+  let outerStroke: string;
+  let innerStroke: string;
+  if (!car.alive) {
+    fillBase = COLOR_CHASSIS_DEAD;
+    outerStroke = COLOR_CHASSIS_DEAD_STROKE;
+    innerStroke = 'rgba(255,255,255,0.06)';
+  } else if (isLeader) {
+    fillBase = COLOR_CHASSIS_LEAD;
+    outerStroke = COLOR_CHASSIS_LEAD_STROKE;
+    innerStroke = 'rgba(251, 191, 36, 0.35)';
+  } else {
+    fillBase = COLOR_CHASSIS_FILL;
+    outerStroke = COLOR_CHASSIS_STROKE;
+    innerStroke = 'rgba(125, 211, 252, 0.35)';
+  }
+
+  // Fan triangulation — each slice from center to two adjacent vertices, like
+  // the original BoxCar2D rendering. Makes the per-vertex radius variance pop
+  // visually even when the outline silhouette is similar between cars.
+  ctx.fillStyle = fillBase;
+  ctx.strokeStyle = innerStroke;
+  ctx.lineWidth = 0.025;
+  for (let i = 0; i < verts.length; i++) {
+    const a = verts[i];
+    const b = verts[(i + 1) % verts.length];
+    ctx.beginPath();
+    ctx.moveTo(center.x, center.y);
+    ctx.lineTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // Bold outer outline on top.
   ctx.beginPath();
-  for (let i = 0; i < car.chassisVerts.length; i++) {
-    const world = transform(xf.p, xf.q.c, xf.q.s, car.chassisVerts[i]);
-    if (i === 0) ctx.moveTo(world.x, world.y);
-    else ctx.lineTo(world.x, world.y);
+  for (let i = 0; i < verts.length; i++) {
+    if (i === 0) ctx.moveTo(verts[i].x, verts[i].y);
+    else ctx.lineTo(verts[i].x, verts[i].y);
   }
   ctx.closePath();
-  if (!car.alive) {
-    ctx.fillStyle = COLOR_CHASSIS_DEAD;
-    ctx.strokeStyle = COLOR_CHASSIS_DEAD_STROKE;
-  } else if (isLeader) {
-    ctx.fillStyle = COLOR_CHASSIS_LEAD;
-    ctx.strokeStyle = COLOR_CHASSIS_LEAD_STROKE;
-  } else {
-    ctx.fillStyle = COLOR_CHASSIS_FILL;
-    ctx.strokeStyle = COLOR_CHASSIS_STROKE;
-  }
-  ctx.lineWidth = 0.05;
-  ctx.fill();
+  ctx.strokeStyle = outerStroke;
+  ctx.lineWidth = 0.06;
   ctx.stroke();
 
   // Arms (visual struts) — drawn in the chassis's transform so they rotate
