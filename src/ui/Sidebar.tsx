@@ -36,6 +36,23 @@ export function Sidebar() {
           format={(v) => `${v}`}
           onChange={(v) => setSetting('eliteCount', v)}
         />
+        <Select<string>
+          label="max gen length"
+          value={settings.maxGenSeconds === null ? 'none' : String(settings.maxGenSeconds)}
+          onChange={(v) =>
+            setSetting('maxGenSeconds', v === 'none' ? null : Number(v))
+          }
+          options={[
+            ['30', '30 seconds'],
+            ['60', '1 minute'],
+            ['120', '2 minutes'],
+            ['300', '5 minutes'],
+            ['none', 'no limit'],
+          ]}
+        />
+        <p className="-mt-1 text-[10px] font-mono text-ink-500">
+          stall detector still ends idle gens
+        </p>
       </section>
 
       <section>

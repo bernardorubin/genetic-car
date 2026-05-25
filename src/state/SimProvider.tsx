@@ -49,6 +49,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
       mutableFloor: settings.floor === 'mutable',
       roughness: settings.roughness,
       maxSlope: settings.maxSlope,
+      maxGenSeconds: cur.maxGenSeconds,
       ga: {
         mutationRate: cur.mutationRate,
         mutationSize: cur.mutationSize,
@@ -72,6 +73,12 @@ export function SimProvider({ children }: { children: ReactNode }) {
       eliteCount: settings.eliteCount,
     });
   }, [settings.mutationRate, settings.mutationSize, settings.eliteCount]);
+
+  // Live-update gen time limit (also no rebuild — just affects when step() force-ends).
+  useEffect(() => {
+    const pop = populationRef.current;
+    if (pop) pop.opts.maxGenSeconds = settings.maxGenSeconds;
+  }, [settings.maxGenSeconds]);
 
   // Sim loop. Runs whether or not the canvas is rendering, so generations
   // keep ticking in "fast" mode where the canvas is blank.

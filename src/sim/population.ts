@@ -16,6 +16,8 @@ export interface PopulationOptions {
   mutableFloor: boolean;
   roughness: number;
   maxSlope: number;
+  /** seconds; null = never force-end a generation on time alone (stall still applies) */
+  maxGenSeconds: number | null;
   ga: GAParams;
 }
 
@@ -26,7 +28,7 @@ export interface GenerationStat {
   avg: number;
 }
 
-const HARD_TICK_LIMIT = 60 * 30; // 30 simulated seconds per generation
+const TICKS_PER_SEC = 60;
 
 export class Population {
   opts: PopulationOptions;
@@ -69,7 +71,10 @@ export class Population {
   step(): boolean {
     this.sim.step();
     if (this.replayMode) return false;
-    if (this.sim.aliveCount() === 0 || this.sim.ticks > HARD_TICK_LIMIT) {
+    const timedOut =
+      this.opts.maxGenSeconds !== null &&
+      this.sim.ticks > this.opts.maxGenSeconds * TICKS_PER_SEC;
+    if (this.sim.aliveCount() === 0 || timedOut) {
       this.advanceGeneration();
       return true;
     }

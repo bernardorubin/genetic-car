@@ -21,9 +21,12 @@ export interface Genome {
   chassisDensity: number;
 }
 
-// Physical decode ranges. Tuned for ~2m cars.
-export const CHASSIS_RADIUS_MIN = 0.3;
-export const CHASSIS_RADIUS_MAX = 1.1;
+// Physical decode ranges.
+// Wide chassis range (0.1..1.8m, ~18× ratio) lets the GA evolve dramatic
+// asymmetric shapes — long spikes next to deep concavities — instead of
+// converging on rounded hexagons. Original BoxCar2D uses similar latitude.
+export const CHASSIS_RADIUS_MIN = 0.1;
+export const CHASSIS_RADIUS_MAX = 1.8;
 export const WHEEL_RADIUS_MIN = 0.2;
 export const WHEEL_RADIUS_MAX = 0.5;
 export const CHASSIS_DENSITY_MIN = 30;

@@ -20,6 +20,8 @@ export interface SimSettings {
   roughness: number;
   /** 0..1 — clamp on per-step slope (cliff allowance) */
   maxSlope: number;
+  /** seconds; null = no time cap (stall detector still ends idle gens) */
+  maxGenSeconds: number | null;
   seed: string;
   render: boolean;
 }
@@ -46,6 +48,7 @@ export const DEFAULT_SETTINGS: SimSettings = {
   floor: 'fixed',
   roughness: 0.45,
   maxSlope: 0.5,
+  maxGenSeconds: null,
   seed: '',
   render: true,
 };
