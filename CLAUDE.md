@@ -1,111 +1,68 @@
----
-description: Use Bun instead of Node.js, npm, pnpm, or vite.
-globs: "*.ts, *.tsx, *.html, *.css, *.js, *.jsx, package.json"
-alwaysApply: false
----
+# genetic.cars
 
-Default to using Bun instead of Node.js.
+A from-scratch modernization of [HTML5 Genetic Cars](https://rednuht.org/genetic_cars_2/) (spiritual successor to BoxCar2D). A genetic algorithm evolves 2D two-wheeled vehicles across generations on procedurally-generated terrain. The user can tweak mutation/selection knobs per generation and watch evolution play out.
 
-- Use `bun <file>` instead of `node <file>` or `ts-node <file>`
-- Use `bun test` instead of `jest` or `vitest`
-- Use `bun build <file.html|file.ts|file.css>` instead of `webpack` or `esbuild`
-- Use `bun install` instead of `npm install` or `yarn install` or `pnpm install`
-- Use `bun run <script>` instead of `npm run <script>` or `yarn run <script>` or `pnpm run <script>`
-- Use `bunx <package> <command>` instead of `npx <package> <command>`
-- Bun automatically loads .env, so don't use dotenv.
+## Stack
 
-## APIs
+- **Runtime / pkg manager**: Bun (`bun install`, `bun run dev`). Never use npm/yarn/pnpm here.
+- **App**: Vite + React 19 + TypeScript (strict).
+- **Styling**: Tailwind CSS v4 via `@tailwindcss/vite`. Theme tokens live in `src/index.css` under `@theme`. Custom `glass` and `hairline` utilities are defined with `@utility` in the same file.
+- **Physics**: `planck` (pure-JS Box2D 2.3 port). Deterministic when paired with `seedrandom` — use this for reproducible runs from a seed.
+- **Charts**: rolled by hand on canvas. No charting lib.
 
-- `Bun.serve()` supports WebSockets, HTTPS, and routes. Don't use `express`.
-- `bun:sqlite` for SQLite. Don't use `better-sqlite3`.
-- `Bun.redis` for Redis. Don't use `ioredis`.
-- `Bun.sql` for Postgres. Don't use `pg` or `postgres.js`.
-- `WebSocket` is built-in. Don't use `ws`.
-- Prefer `Bun.file` over `node:fs`'s readFile/writeFile
-- Bun.$`ls` instead of execa.
+## Module layout
 
-## Testing
-
-Use `bun test` to run tests.
-
-```ts#index.test.ts
-import { test, expect } from "bun:test";
-
-test("hello world", () => {
-  expect(1).toBe(1);
-});
+```
+src/
+  App.tsx             # top-level layout shell
+  main.tsx            # React entry
+  index.css           # Tailwind theme + global styles
+  sim/                # pure simulation domain — no React, no DOM
+    genome.ts         # Genome type + random/mutate/crossover
+    terrain.ts        # seeded floor generation
+    car.ts            # Genome -> planck bodies + joints + wheel motors
+    world.ts          # planck.World lifecycle, step loop, follow camera
+    ga.ts             # population, fitness, selection, elitism
+  render/
+    canvas.ts         # draws a World snapshot to a Canvas2D context
+  ui/                 # React components only
+    SimCanvas.tsx     # mounts canvas + drives RAF loop
+    Sidebar.tsx       # control panel
+    Hud.tsx           # overlay stats
+    FitnessGraph.tsx  # per-generation graph (added later)
 ```
 
-## Frontend
+**Boundary rule**: `sim/` and `render/` must not import React or anything from `ui/`. UI talks to the sim through a small imperative facade (the World object) — not via React state for hot-path data. Per-frame state (positions, scores) flows through the canvas directly; React state holds only UI knobs and per-generation summaries.
 
-Use HTML imports with `Bun.serve()`. Don't use `vite`. HTML imports fully support React, CSS, Tailwind.
+## Genome (working spec)
 
-Server:
+22 genes per car, all normalized floats in [0, 1] unless noted:
 
-```ts#index.ts
-import index from "./index.html"
+- 8 chassis vertices, each a (radius, angle) pair around the car center → 16 values, but commonly stored as 8 radii at fixed evenly-spaced angles (simpler, matches the original).
+- 2 wheel radii.
+- 2 wheel positions (which chassis vertex each wheel attaches to, 0–7).
+- 2 wheel densities.
+- 1 chassis density.
 
-Bun.serve({
-  routes: {
-    "/": index,
-    "/api/users/:id": {
-      GET: (req) => {
-        return new Response(JSON.stringify({ id: req.params.id }));
-      },
-    },
-  },
-  // optional websocket support
-  websocket: {
-    open: (ws) => {
-      ws.send("Hello, world!");
-    },
-    message: (ws, message) => {
-      ws.send(message);
-    },
-    close: (ws) => {
-      // handle close
-    }
-  },
-  development: {
-    hmr: true,
-    console: true,
-  }
-})
-```
+Wheel motors run at a constant torque/speed (not evolved in v1) so improvements come from morphology, not control.
 
-HTML files can import .tsx, .jsx or .js files directly and Bun's bundler will transpile & bundle automatically. `<link>` tags can point to stylesheets and Bun's CSS bundler will bundle.
+## Conventions
 
-```html#index.html
-<html>
-  <body>
-    <h1>Hello, world!</h1>
-    <script type="module" src="./frontend.tsx"></script>
-  </body>
-</html>
-```
+- **No `any`, no `@ts-ignore`**. Strict TS. If a planck typing is wrong, narrow it locally with a typed wrapper.
+- **Pure sim helpers** (genome/ga/terrain) take an RNG parameter (`() => number`) rather than calling `Math.random()` — this is what makes seeded runs reproducible.
+- **Units**: planck works in meters at small magnitudes (a car is ~2m wide). Renderer applies a meters→pixels scale and a follow-camera transform; sim code never thinks in pixels.
+- **Hot path**: avoid per-frame allocations inside the step loop. Reuse vectors, prefer typed arrays for per-car scratch state.
+- **Comments**: only where the WHY is non-obvious (a planck quirk, a physics tuning constant, a non-intuitive GA choice). No JSDoc on components.
 
-With the following `frontend.tsx`:
+## Commands
 
-```tsx#frontend.tsx
-import React from "react";
-import { createRoot } from "react-dom/client";
+- `bun run dev` — Vite dev server on :5173
+- `bun run build` — `tsc -b` then `vite build`
+- `bun run lint` — ESLint
+- `bunx tsc -b` — full project typecheck (run after edits)
 
-// import .css files directly and it works
-import './index.css';
+## Reference
 
-const root = createRoot(document.body);
-
-export default function Frontend() {
-  return <h1>Hello, world!</h1>;
-}
-
-root.render(<Frontend />);
-```
-
-Then, run index.ts
-
-```sh
-bun --hot ./index.ts
-```
-
-For more information, read the Bun API docs in `node_modules/bun-types/docs/**.mdx`.
+- Original project: https://rednuht.org/genetic_cars_2/
+- Original source (for inspiration only — we reimplement from scratch): https://github.com/red42/HTML5_Genetic_Cars
+- planck.js docs: https://piqnt.com/planck.js/

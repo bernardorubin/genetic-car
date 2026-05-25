@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --color-ink-950: #07080d;
+  --color-ink-900: #0c0e16;
+  --color-ink-800: #131724;
+  --color-ink-700: #1c2030;
+  --color-ink-500: #4a5168;
+  --color-ink-300: #8b93ad;
+  --color-ink-100: #c8cee0;
+  --color-ink-50:  #e9ecf5;
+
+  --color-accent-400: #7dd3fc;
+  --color-accent-500: #38bdf8;
+  --color-accent-600: #0ea5e9;
+  --color-lime-400:   #a3e635;
+  --color-rose-400:   #fb7185;
+  --color-amber-400:  #fbbf24;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  background: var(--color-ink-950);
+  color: var(--color-ink-100);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(56, 189, 248, 0.10), transparent 60%),
+    radial-gradient(900px 500px at 95% 110%, rgba(163, 230, 53, 0.06), transparent 60%),
+    var(--color-ink-950);
+}
+
+@utility glass {
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
+  border: 1px solid rgba(255,255,255,0.08);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.04) inset,
+    0 20px 60px -20px rgba(0,0,0,0.6);
+}
+
+@utility hairline {
+  border: 1px solid rgba(255,255,255,0.06);
+}

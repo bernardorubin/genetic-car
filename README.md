@@ -1,15 +1,19 @@
-# genetic-car
+# genetic.cars
 
-To install dependencies:
+Modern web reimagining of [HTML5 Genetic Cars](https://rednuht.org/genetic_cars_2/) — a genetic algorithm evolves 2D two-wheeled vehicles across generations on procedurally-generated terrain. Built with Bun, Vite, React, TypeScript, Tailwind v4, and planck.js (Box2D).
+
+## Dev
 
 ```bash
 bun install
+bun run dev   # http://localhost:5173
 ```
 
-To run:
+## Build
 
 ```bash
-bun run index.ts
+bun run build
+bun run preview
 ```
 
-This project was created using `bun init` in bun v1.3.14. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+See `CLAUDE.md` for architecture notes.
