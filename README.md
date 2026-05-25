@@ -21,9 +21,11 @@ bun run preview  # serve dist/ locally
 ## Features
 
 - **Up-to-4-wheel cars** — the GA evolves the wheel count on its own (each car has 4 slots, each with an "active" gene).
+- **Wide chassis morphology** — each car has 8 polar chassis radii (0.1m – 1.8m, ~18× ratio) so evolved cars can grow real spikes and asymmetric blades, BoxCar2D-style — not just rounded hexagons.
+- **Independently randomized wheel sizes** — every wheel slot rolls its own radius (0.2m – 0.5m), density, and chassis attachment point.
 - **Procedural terrain** that gets harder the farther a car travels (`difficultyRamp(x)`).
 - **Distance color tiers** — terrain shifts cyan → lime → amber → orange → rose → fuchsia at 80 / 200 / 400 / 650 / 1000 m so you can see how far your generations are pushing.
-- **Live controls** — mutation rate / size, elite clones, gravity (Moon → Jupiter), fixed vs mutable floor, terrain roughness + max slope, world seed.
+- **Live controls** — mutation rate / size, elite clones, max gen length (default: **no limit**), gravity (Moon → Jupiter), fixed vs mutable floor, terrain roughness + max slope, world seed.
 - **Reproducible runs** — every seeded option produces a byte-identical evolution. Share a seed and someone else gets the same world and the same outcomes.
 - **Replay best ever** — pause evolution and watch the fittest genome solo on the terrain.
 - **Fast mode** — turn rendering off and let the population race through ~50+ generations per minute in the background.
