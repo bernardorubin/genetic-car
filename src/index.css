@@ -54,3 +54,28 @@ body {
 @utility hairline {
   border: 1px solid rgba(255,255,255,0.06);
 }
+
+@keyframes achievement-slide {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes record-flash {
+  0%   { opacity: 0; }
+  20%  { opacity: 0.55; }
+  100% { opacity: 0; }
+}
+
+.record-flash {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 40% 65%, rgba(251,191,36,0.5), transparent 60%);
+  animation: record-flash 900ms ease-out forwards;
+}

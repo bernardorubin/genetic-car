@@ -159,6 +159,14 @@ export class Population {
     this.sim = this.makeSim([cloneGenome(this.bestGenome)], seedrandom(this.terrainSeed));
   }
 
+  /** Replay an arbitrary genome (e.g. a Hall of Fame entry) on the current terrain. */
+  enterReplayWith(genome: Genome): void {
+    if (this.replayMode) this.exitReplay();
+    this.savedGenomesBeforeReplay = this.genomes;
+    this.replayMode = true;
+    this.sim = this.makeSim([cloneGenome(genome)], seedrandom(this.terrainSeed));
+  }
+
   exitReplay(): void {
     if (!this.replayMode || !this.savedGenomesBeforeReplay) return;
     this.replayMode = false;

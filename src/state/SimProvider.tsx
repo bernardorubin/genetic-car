@@ -16,7 +16,14 @@ import {
   savePopulation,
   updateTopScore,
 } from '../sim/storage';
-import { SimContext, type SimContextValue } from './SimContext';
+import { checkUnlocks, getUnlocked } from '../sim/achievements';
+import {
+  loadHallOfFame,
+  submitToHall,
+  type HallOfFameEntry,
+} from '../sim/hallOfFame';
+import { worldName } from './worldName';
+import { SimContext, type AchievementToast, type SimContextValue } from './SimContext';
 import {
   DEFAULT_SETTINGS,
   EMPTY_STATS,
@@ -75,6 +82,17 @@ export function SimProvider({ children }: { children: ReactNode }) {
   const pendingRestoreRef = useRef<ReturnType<typeof loadPopulation>>(null);
   // First-mount hydration is one-shot; the first population-create effect consumes this.
   const initialHydrateRef = useRef(BOOTSTRAP.hydrate);
+
+  const [toasts, setToasts] = useState<AchievementToast[]>([]);
+  const [unlockedAchievements, setUnlockedAchievements] = useState<Set<string>>(() => getUnlocked());
+  const unlockedRef = useRef(unlockedAchievements);
+  useEffect(() => {
+    unlockedRef.current = unlockedAchievements;
+  }, [unlockedAchievements]);
+  const toastKeyRef = useRef(0);
+  const [hallOfFame, setHallOfFame] = useState<HallOfFameEntry[]>(() => loadHallOfFame());
+  const [recordCelebrations, setRecordCelebrations] = useState<{ key: number; score: number }[]>([]);
+  const recordKeyRef = useRef(0);
 
   // Mirror settings into a ref for the RAF loop (which doesn't re-bind on every render).
   useEffect(() => {
@@ -159,7 +177,51 @@ export function SimProvider({ children }: { children: ReactNode }) {
             // A generation just finished + a new one started.
             // Autosave the current state and bump the all-time top score if needed.
             autosavePopulation(pop.snapshot());
+            const prevTop = topScoreCache;
             topScoreCache = updateTopScore(pop.bestScore);
+            if (topScoreCache > prevTop && prevTop > 0) {
+              // Brand-new all-time record — fire a celebration event for the UI.
+              const key = ++recordKeyRef.current;
+              const scoreAtRecord = topScoreCache;
+              setRecordCelebrations((prev) => [...prev, { key, score: scoreAtRecord }]);
+            }
+
+            // Submit to the Hall of Fame if this beats any existing entry.
+            if (pop.bestGenome && Number.isFinite(pop.bestScore) && pop.bestScore > 0) {
+              const newHall = submitToHall({
+                score: pop.bestScore,
+                generation: pop.generation,
+                seed: pop.opts.seed,
+                worldName: worldName(pop.opts.seed),
+                genome: pop.bestGenome,
+              });
+              setHallOfFame(newHall);
+            }
+
+            // Check achievements with the latest gen's best (which is the last
+            // entry pushed onto history before generation++).
+            const lastGen = pop.history[pop.history.length - 1];
+            const genBest = lastGen?.best ?? 0;
+            const { newlyUnlocked, updated } = checkUnlocks(
+              {
+                population: pop,
+                genBest,
+                topScore: topScoreCache,
+                generation: pop.generation,
+              },
+              unlockedRef.current,
+            );
+            if (newlyUnlocked.length > 0) {
+              unlockedRef.current = updated;
+              setUnlockedAchievements(updated);
+              setToasts((prev) => [
+                ...prev,
+                ...newlyUnlocked.map((a) => ({
+                  key: ++toastKeyRef.current,
+                  achievement: a,
+                })),
+              ]);
+            }
           }
         }
         framesSinceUpdate++;
@@ -234,6 +296,20 @@ export function SimProvider({ children }: { children: ReactNode }) {
 
   const getPopulation = useCallback(() => populationRef.current, []);
 
+  const dismissToast = useCallback((key: number) => {
+    setToasts((prev) => prev.filter((t) => t.key !== key));
+  }, []);
+
+  const dismissRecordCelebration = useCallback((key: number) => {
+    setRecordCelebrations((prev) => prev.filter((c) => c.key !== key));
+  }, []);
+
+  const replayGenome = useCallback((genome: HallOfFameEntry['genome']) => {
+    const pop = populationRef.current;
+    if (!pop) return;
+    pop.enterReplayWith(genome);
+  }, []);
+
   const value = useMemo<SimContextValue>(
     () => ({
       settings,
@@ -246,8 +322,33 @@ export function SimProvider({ children }: { children: ReactNode }) {
       save,
       restore,
       toggleReplay,
+      toasts,
+      dismissToast,
+      unlockedAchievements,
+      hallOfFame,
+      replayGenome,
+      recordCelebrations,
+      dismissRecordCelebration,
     }),
-    [settings, stats, getPopulation, setSetting, newPopulation, regenWorld, resetAll, save, restore, toggleReplay],
+    [
+      settings,
+      stats,
+      getPopulation,
+      setSetting,
+      newPopulation,
+      regenWorld,
+      resetAll,
+      save,
+      restore,
+      toggleReplay,
+      toasts,
+      dismissToast,
+      unlockedAchievements,
+      hallOfFame,
+      replayGenome,
+      recordCelebrations,
+      dismissRecordCelebration,
+    ],
   );
 
   return <SimContext.Provider value={value}>{children}</SimContext.Provider>;

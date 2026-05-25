@@ -1,6 +1,8 @@
 import type { FloorMode, GravityKey } from '../state/types';
 import { useSim } from '../state/useSim';
 import { FitnessGraph } from './FitnessGraph';
+import { HallOfFame } from './HallOfFame';
+import { AchievementsList } from './AchievementsList';
 
 export function Sidebar() {
   const { settings, stats, setSetting, newPopulation, regenWorld, save, restore, toggleReplay } = useSim();
@@ -168,6 +170,16 @@ export function Sidebar() {
       <section>
         <SectionHeading>fitness · last 100 gens</SectionHeading>
         <FitnessGraph />
+      </section>
+
+      <section>
+        <SectionHeading>hall of fame</SectionHeading>
+        <HallOfFame />
+      </section>
+
+      <section>
+        <SectionHeading>achievements</SectionHeading>
+        <AchievementsList />
       </section>
     </div>
   );

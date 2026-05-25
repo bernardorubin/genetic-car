@@ -3,6 +3,8 @@ import { Hud } from './ui/Hud';
 import { SimCanvas } from './ui/SimCanvas';
 import { SimProvider } from './state/SimProvider';
 import { WorldBadge } from './ui/WorldBadge';
+import { AchievementToasts } from './ui/AchievementToasts';
+import { RecordCelebration } from './ui/RecordCelebration';
 
 export default function App() {
   return (
@@ -34,6 +36,8 @@ export default function App() {
           <section className="relative glass rounded-2xl overflow-hidden">
             <SimCanvas />
             <Hud />
+            <RecordCelebration />
+            <AchievementToasts />
           </section>
           <aside className="glass rounded-2xl overflow-y-auto">
             <Sidebar />
