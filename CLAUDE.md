@@ -113,7 +113,19 @@ Default is no cap so leaders can run as far as they evolve to. The stall detecto
 
 ## Persistence
 
-`src/sim/storage.ts` serializes the current population to `localStorage` under `genetic-cars:saved-pop:v2`. One save slot. Genome `Float32Array`/`Uint8Array` fields are serialized as `number[]` for JSON. The seed is part of the snapshot, so restoring also switches the world back to the saved terrain.
+`src/sim/storage.ts` writes to three separate `localStorage` keys:
+
+| Key | Written when | Read when |
+|---|---|---|
+| `genetic-cars:saved-pop:v2` | User clicks "save" | User clicks "restore" |
+| `genetic-cars:autosave:v2` | Every generation completion (in the RAF loop) | First mount — hydrates the initial Population so a refresh resumes |
+| `genetic-cars:top-score:v1` | Whenever `pop.bestScore` exceeds the stored value | On mount, and live during the sim (displayed as "all-time" in the HUD) |
+
+The autosave and manual-save keys are independent — manual save is a user-controlled checkpoint and never overwritten by autosave. Genome `Float32Array`/`Uint8Array` fields are serialized as `number[]` for JSON.
+
+The snapshot bundles everything needed for byte-identical resume: seed, gravity, mutableFloor, roughness, maxSlope, maxGenSeconds, bestScore, bestGenome, plus the full population and history. `gravityKeyFromValue()` in `state/types.ts` reverses the numeric gravity back to the `GravityKey` enum.
+
+**StrictMode gotcha**: the initial-hydrate effect runs twice in dev. We use a seed-match guard (`auto.seed === settings.seed`) instead of clearing the ref after use — clearing would let the second mount start from gen 0 and discard the restored state.
 
 ## Seeds
 

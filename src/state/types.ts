@@ -10,6 +10,20 @@ export const GRAVITY_VALUES: Record<GravityKey, number> = {
   jupiter: 24.79,
 };
 
+/** Reverse-lookup a GravityKey from its numeric value (used when hydrating from a saved snapshot). */
+export function gravityKeyFromValue(v: number): GravityKey {
+  let best: GravityKey = 'earth';
+  let bestDiff = Infinity;
+  for (const k of Object.keys(GRAVITY_VALUES) as GravityKey[]) {
+    const d = Math.abs(GRAVITY_VALUES[k] - v);
+    if (d < bestDiff) {
+      bestDiff = d;
+      best = k;
+    }
+  }
+  return best;
+}
+
 export interface SimSettings {
   mutationRate: number;
   mutationSize: number;
@@ -32,6 +46,8 @@ export interface LiveStats {
   total: number;
   best: number;
   avg: number;
+  /** all-time best distance across all sessions (persisted in localStorage) */
+  topScore: number;
   history: GenerationStat[];
   replay: boolean;
   hasBestGenome: boolean;
@@ -59,6 +75,7 @@ export const EMPTY_STATS: LiveStats = {
   total: 0,
   best: 0,
   avg: 0,
+  topScore: 0,
   history: [],
   replay: false,
   hasBestGenome: false,

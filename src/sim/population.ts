@@ -167,16 +167,30 @@ export class Population {
       generation: this.generation,
       seed: this.opts.seed,
       gravity: this.opts.gravity,
+      mutableFloor: this.opts.mutableFloor,
+      roughness: this.opts.roughness,
+      maxSlope: this.opts.maxSlope,
+      maxGenSeconds: this.opts.maxGenSeconds,
+      bestScore: this.bestScore,
+      bestGenome: this.bestGenome ? cloneGenome(this.bestGenome) : null,
       genomes: this.genomes.map(cloneGenome),
       history: this.history,
     };
   }
 
   /** Reload from saved genomes — keeps the current terrain. */
-  loadGenomes(genomes: Genome[], generation: number, history: GenerationStat[]): void {
+  loadGenomes(
+    genomes: Genome[],
+    generation: number,
+    history: GenerationStat[],
+    bestScore = 0,
+    bestGenome: Genome | null = null,
+  ): void {
     this.genomes = genomes.map(cloneGenome);
     this.generation = generation;
     this.history = [...history];
+    this.bestScore = bestScore;
+    this.bestGenome = bestGenome ? cloneGenome(bestGenome) : null;
     this.replayMode = false;
     this.savedGenomesBeforeReplay = null;
     this.sim = this.makeSim(this.genomes, seedrandom(this.terrainSeed));

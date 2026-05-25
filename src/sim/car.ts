@@ -27,8 +27,12 @@ export interface Car {
   stallTicks: number;
 }
 
-const MOTOR_SPEED = -18;
-const MOTOR_TORQUE = 60;
+// Motor is constant across all cars — improvements come from morphology, not
+// motor tuning. Torque bumped from 60 → 150 so cars can actually climb the
+// steep cliffs the jagged terrain produces; otherwise even good shapes stall
+// on vertical-ish faces.
+const MOTOR_SPEED = -22;
+const MOTOR_TORQUE = 150;
 
 export function buildCar(world: World, genome: Genome, originX: number, originY: number): Car {
   const localVerts: Vec2[] = [];

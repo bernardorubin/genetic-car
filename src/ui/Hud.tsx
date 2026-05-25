@@ -11,9 +11,19 @@ export function Hud() {
         <Stat label="best dist" value={`${stats.best.toFixed(1)} m`} accent="text-accent-400" />
         <Stat label="avg dist" value={`${stats.avg.toFixed(1)} m`} />
       </div>
-      <div className="glass rounded-xl px-3 py-1.5 text-[11px] font-mono text-ink-300 pointer-events-auto flex items-center gap-2">
-        <span className={`inline-block w-1.5 h-1.5 rounded-full ${settings.render ? 'bg-lime-400' : 'bg-amber-400'}`} />
-        {settings.render ? 'running · 2x' : 'fast · 12x · no render'}
+      <div className="flex items-center gap-3 pointer-events-auto">
+        <div className="glass rounded-xl px-3 py-2 flex items-center gap-2">
+          <span className="text-[10px] font-mono uppercase tracking-[0.16em] text-ink-500">
+            all-time
+          </span>
+          <span className="text-sm font-mono text-amber-400">
+            {stats.topScore.toFixed(1)} m
+          </span>
+        </div>
+        <div className="glass rounded-xl px-3 py-1.5 text-[11px] font-mono text-ink-300 flex items-center gap-2">
+          <span className={`inline-block w-1.5 h-1.5 rounded-full ${settings.render ? 'bg-lime-400' : 'bg-amber-400'}`} />
+          {settings.render ? 'running · 2x' : 'fast · 12x · no render'}
+        </div>
       </div>
     </div>
   );

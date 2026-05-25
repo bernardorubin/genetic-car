@@ -7,13 +7,22 @@ import {
   type ReactNode,
 } from 'react';
 import { Population } from '../sim/population';
-import { hasSavedPopulation, loadPopulation, savePopulation } from '../sim/storage';
+import {
+  autosavePopulation,
+  getTopScore,
+  hasSavedPopulation,
+  loadAutosave,
+  loadPopulation,
+  savePopulation,
+  updateTopScore,
+} from '../sim/storage';
 import { SimContext, type SimContextValue } from './SimContext';
 import {
   DEFAULT_SETTINGS,
   EMPTY_STATS,
   GRAVITY_VALUES,
   POP_SIZE,
+  gravityKeyFromValue,
   type LiveStats,
   type SimSettings,
 } from './types';
@@ -22,16 +31,50 @@ function makeSeed(): string {
   return Math.floor(Math.random() * 1e9).toString(36);
 }
 
+/**
+ * Build the initial settings + (optional) autosave to hydrate from. Resolved
+ * once at module load — there's only one SimProvider in the app and we want a
+ * stable value that doesn't get re-derived during render.
+ */
+function bootstrapInitialState(): {
+  settings: SimSettings;
+  hydrate: ReturnType<typeof loadAutosave>;
+} {
+  const auto = typeof window === 'undefined' ? null : loadAutosave();
+  if (auto) {
+    return {
+      settings: {
+        ...DEFAULT_SETTINGS,
+        seed: auto.seed,
+        gravity: gravityKeyFromValue(auto.gravity),
+        floor: auto.mutableFloor ? 'mutable' : 'fixed',
+        roughness: auto.roughness,
+        maxSlope: auto.maxSlope,
+        maxGenSeconds: auto.maxGenSeconds,
+      },
+      hydrate: auto,
+    };
+  }
+  return {
+    settings: { ...DEFAULT_SETTINGS, seed: makeSeed() },
+    hydrate: null,
+  };
+}
+
+const BOOTSTRAP = bootstrapInitialState();
+
 export function SimProvider({ children }: { children: ReactNode }) {
-  const [settings, setSettings] = useState<SimSettings>(() => ({
-    ...DEFAULT_SETTINGS,
-    seed: makeSeed(),
+  const [settings, setSettings] = useState<SimSettings>(BOOTSTRAP.settings);
+  const [stats, setStats] = useState<LiveStats>(() => ({
+    ...EMPTY_STATS,
+    topScore: getTopScore(),
   }));
-  const [stats, setStats] = useState<LiveStats>(EMPTY_STATS);
 
   const populationRef = useRef<Population | null>(null);
   const settingsRef = useRef(settings);
   const pendingRestoreRef = useRef<ReturnType<typeof loadPopulation>>(null);
+  // First-mount hydration is one-shot; the first population-create effect consumes this.
+  const initialHydrateRef = useRef(BOOTSTRAP.hydrate);
 
   // Mirror settings into a ref for the RAF loop (which doesn't re-bind on every render).
   useEffect(() => {
@@ -57,10 +100,30 @@ export function SimProvider({ children }: { children: ReactNode }) {
       },
     });
     populationRef.current = pop;
-    if (pendingRestoreRef.current) {
+
+    // Hydrate from autosave on first mount. We don't clear the ref after use —
+    // StrictMode runs this effect twice in dev, and clearing would mean the second
+    // run starts from gen 0. The seed-match check is what guards against
+    // re-hydrating onto a population the user has since reseeded.
+    const auto = initialHydrateRef.current;
+    if (auto && auto.seed === settings.seed) {
+      pop.loadGenomes(
+        auto.genomes,
+        auto.generation,
+        auto.history,
+        auto.bestScore,
+        auto.bestGenome,
+      );
+    } else if (pendingRestoreRef.current) {
       const saved = pendingRestoreRef.current;
       pendingRestoreRef.current = null;
-      pop.loadGenomes(saved.genomes, saved.generation, saved.history);
+      pop.loadGenomes(
+        saved.genomes,
+        saved.generation,
+        saved.history,
+        saved.bestScore,
+        saved.bestGenome,
+      );
     }
     // The RAF loop publishes fresh stats on its next tick.
   }, [settings.seed, settings.gravity, settings.floor, settings.roughness, settings.maxSlope]);
@@ -85,12 +148,19 @@ export function SimProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let raf = 0;
     let framesSinceUpdate = 0;
+    let topScoreCache = getTopScore();
     const loop = () => {
       const pop = populationRef.current;
       if (pop) {
         const steps = settingsRef.current.render ? 2 : 12;
         for (let i = 0; i < steps; i++) {
-          pop.step();
+          const newGen = pop.step();
+          if (newGen) {
+            // A generation just finished + a new one started.
+            // Autosave the current state and bump the all-time top score if needed.
+            autosavePopulation(pop.snapshot());
+            topScoreCache = updateTopScore(pop.bestScore);
+          }
         }
         framesSinceUpdate++;
         if (framesSinceUpdate >= 6) {
@@ -98,6 +168,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
           const live = pop.liveStats();
           setStats({
             ...live,
+            topScore: topScoreCache,
             history: pop.history.slice(-100),
             replay: pop.replayMode,
             hasBestGenome: pop.bestGenome !== null,
@@ -144,7 +215,13 @@ export function SimProvider({ children }: { children: ReactNode }) {
       pendingRestoreRef.current = saved;
       setSettings((s) => ({ ...s, seed: saved.seed }));
     } else {
-      pop.loadGenomes(saved.genomes, saved.generation, saved.history);
+      pop.loadGenomes(
+        saved.genomes,
+        saved.generation,
+        saved.history,
+        saved.bestScore,
+        saved.bestGenome,
+      );
     }
   }, []);
 

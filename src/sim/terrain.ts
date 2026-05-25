@@ -23,10 +23,17 @@ const SEG_WIDTH = 1.4;
 const FLAT_LEAD = 6;
 
 export function generateTerrain(rng: Rng, opts: TerrainOptions): Terrain {
-  // Map normalized 0..1 dials into physical noise + slope clamps.
-  // Wider span than v1 — 100% should produce visibly dramatic terrain, not just "moderate hills".
-  const baseStepNoise = 0.25 + opts.roughness * 1.15; // 0.25..1.40
-  const baseClamp = 0.5 + opts.maxSlope * 1.8;        // 0.50..2.30
+  // Two-layer terrain model — matches BoxCar2D's jagged feel.
+  //
+  //   Layer 1: low-frequency slope-walk         → sustained hills + valleys
+  //   Layer 2: per-segment high-frequency Y noise → sharp angle changes at every vertex
+  //
+  // A pure slope-walk integrates into smooth curves no matter how loud the noise
+  // (Brownian motion of an integral is smooth). The jitter layer is what gives us
+  // the zigzag profile of the original game.
+  const trendNoise = 0.15 + opts.roughness * 0.5;   // slope-walk delta (low freq)
+  const slopeClamp = 0.4 + opts.maxSlope * 1.6;     // slope clamp
+  const jitter = 0.1 + opts.roughness * 1.4;        // per-segment Y jitter (high freq, this is the jagged bit)
   const segments = opts.segments ?? SEGMENTS_DEFAULT;
 
   const points: TerrainPoint[] = [];
@@ -35,16 +42,17 @@ export function generateTerrain(rng: Rng, opts: TerrainOptions): Terrain {
   for (let i = 0; i <= segments; i++) {
     points.push({ x: i * SEG_WIDTH, y });
     if (i < FLAT_LEAD) continue;
-    // Progressive difficulty: gentle near spawn, full intensity by ~500m.
-    // Gives early populations a fair chance and rewards survivors with real challenge.
     const x = i * SEG_WIDTH;
     const ramp = difficultyRamp(x);
-    const stepNoise = baseStepNoise * ramp;
-    const clamp = baseClamp * ramp;
-    slope += (rng() - 0.5) * stepNoise;
-    if (slope > clamp) slope = clamp;
-    if (slope < -clamp) slope = -clamp;
-    y += slope * 0.8;
+    // Layer 1: smooth trend
+    slope += (rng() - 0.5) * trendNoise * ramp;
+    const cap = slopeClamp * ramp;
+    if (slope > cap) slope = cap;
+    if (slope < -cap) slope = -cap;
+    // Layer 2: independent per-segment jitter — what makes adjacent segments
+    // have different angles instead of integrating into a smooth curve.
+    const jitterDy = (rng() - 0.5) * jitter * ramp;
+    y += slope * 0.8 + jitterDy;
   }
   return { points, segmentWidth: SEG_WIDTH };
 }

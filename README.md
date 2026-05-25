@@ -29,7 +29,10 @@ bun run preview  # serve dist/ locally
 - **Reproducible runs** — every seeded option produces a byte-identical evolution. Share a seed and someone else gets the same world and the same outcomes.
 - **Replay best ever** — pause evolution and watch the fittest genome solo on the terrain.
 - **Fast mode** — turn rendering off and let the population race through ~50+ generations per minute in the background.
-- **Save / restore** — one population slot persisted in `localStorage`. No server, no account.
+- **Auto-save + auto-resume** — every generation snapshot is written to `localStorage`; refresh the page and the sim picks up exactly where it left off (same seed, same generation, same population).
+- **All-time top score** — best distance ever, persisted across sessions, shown in the HUD.
+- **Manual save / restore** — a separate checkpoint slot if you want to roll back to a specific run later.
+- **Beefier motors** — torque tuned so cars can actually climb the cliffs the jagged terrain produces.
 
 ## Architecture
 

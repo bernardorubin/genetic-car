@@ -3,6 +3,11 @@ import type { Genome } from './genome';
 // v2 schema adds wheelActive[] for up-to-4 wheels; v1 saves are silently dropped
 // (old key no longer read, hasSavedPopulation returns false until a v2 save exists).
 const KEY = 'genetic-cars:saved-pop:v2';
+// Separate slot — written automatically after every generation so a refresh resumes.
+// Manual save uses KEY; auto-save uses AUTO_KEY. The two never overwrite each other.
+const AUTO_KEY = 'genetic-cars:autosave:v2';
+// All-time best distance. Never wiped by new-pop, restore, or seed changes.
+const TOP_KEY = 'genetic-cars:top-score:v1';
 
 interface SerializedGenome {
   chassis: number[];
@@ -18,6 +23,12 @@ interface SavedSnapshot {
   generation: number;
   seed: string;
   gravity: number;
+  mutableFloor: boolean;
+  roughness: number;
+  maxSlope: number;
+  maxGenSeconds: number | null;
+  bestScore: number;
+  bestGenome: SerializedGenome | null;
   genomes: SerializedGenome[];
   history: { index: number; best: number; top10Avg: number; avg: number }[];
 }
@@ -44,38 +55,102 @@ function fromSerialized(s: SerializedGenome): Genome {
   };
 }
 
-export function savePopulation(snapshot: Omit<SavedSnapshot, 'savedAt' | 'genomes'> & { genomes: Genome[] }): void {
+type SaveInput = Omit<SavedSnapshot, 'savedAt' | 'genomes' | 'bestGenome'> & {
+  genomes: Genome[];
+  bestGenome: Genome | null;
+};
+
+function writeSnapshot(key: string, snapshot: SaveInput): void {
   const payload: SavedSnapshot = {
     ...snapshot,
     genomes: snapshot.genomes.map(toSerialized),
+    bestGenome: snapshot.bestGenome ? toSerialized(snapshot.bestGenome) : null,
     savedAt: new Date().toISOString(),
   };
-  localStorage.setItem(KEY, JSON.stringify(payload));
+  try {
+    localStorage.setItem(key, JSON.stringify(payload));
+  } catch {
+    // QuotaExceeded or private mode — swallow; the sim shouldn't crash because of storage.
+  }
+}
+
+export function savePopulation(snapshot: SaveInput): void {
+  writeSnapshot(KEY, snapshot);
+}
+
+export function autosavePopulation(snapshot: SaveInput): void {
+  writeSnapshot(AUTO_KEY, snapshot);
 }
 
 export interface RestoredPopulation {
   generation: number;
   seed: string;
   gravity: number;
+  mutableFloor: boolean;
+  roughness: number;
+  maxSlope: number;
+  maxGenSeconds: number | null;
+  bestScore: number;
+  bestGenome: Genome | null;
   genomes: Genome[];
   history: SavedSnapshot['history'];
   savedAt: string;
 }
 
-export function loadPopulation(): RestoredPopulation | null {
-  const raw = localStorage.getItem(KEY);
+function readSnapshot(key: string): RestoredPopulation | null {
+  const raw = localStorage.getItem(key);
   if (!raw) return null;
-  const parsed = JSON.parse(raw) as SavedSnapshot;
-  return {
-    generation: parsed.generation,
-    seed: parsed.seed,
-    gravity: parsed.gravity,
-    genomes: parsed.genomes.map(fromSerialized),
-    history: parsed.history,
-    savedAt: parsed.savedAt,
-  };
+  try {
+    const parsed = JSON.parse(raw) as Partial<SavedSnapshot>;
+    if (!parsed.genomes || !parsed.seed) return null;
+    return {
+      generation: parsed.generation ?? 0,
+      seed: parsed.seed,
+      gravity: parsed.gravity ?? 9.81,
+      mutableFloor: parsed.mutableFloor ?? false,
+      roughness: parsed.roughness ?? 0.45,
+      maxSlope: parsed.maxSlope ?? 0.5,
+      maxGenSeconds: parsed.maxGenSeconds === undefined ? null : parsed.maxGenSeconds,
+      bestScore: parsed.bestScore ?? 0,
+      bestGenome: parsed.bestGenome ? fromSerialized(parsed.bestGenome) : null,
+      genomes: parsed.genomes.map(fromSerialized),
+      history: parsed.history ?? [],
+      savedAt: parsed.savedAt ?? '',
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function loadPopulation(): RestoredPopulation | null {
+  return readSnapshot(KEY);
+}
+
+export function loadAutosave(): RestoredPopulation | null {
+  return readSnapshot(AUTO_KEY);
 }
 
 export function hasSavedPopulation(): boolean {
   return localStorage.getItem(KEY) !== null;
+}
+
+export function getTopScore(): number {
+  const raw = localStorage.getItem(TOP_KEY);
+  if (!raw) return 0;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** Update top score if the candidate beats the stored one. Returns the (possibly unchanged) new top. */
+export function updateTopScore(candidate: number): number {
+  const current = getTopScore();
+  if (candidate > current) {
+    try {
+      localStorage.setItem(TOP_KEY, String(candidate));
+    } catch {
+      // ignore
+    }
+    return candidate;
+  }
+  return current;
 }
