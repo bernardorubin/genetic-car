@@ -33,6 +33,12 @@ export interface SimContextValue {
   /** Active record-celebration events. Self-dismissed by the overlay component. */
   recordCelebrations: { key: number; score: number }[];
   dismissRecordCelebration: (key: number) => void;
+  /** Current top-K live cars (re-derived each frame for the favorite-picker UI). */
+  topLive: { genome: import('../sim/genome').Genome; score: number; carIndex: number }[];
+  /** True when the player has pinned a favorite genome to influence selection. */
+  hasFavorite: boolean;
+  setFavorite: (carIndex: number) => void;
+  clearFavorite: () => void;
 }
 
 export const SimContext = createContext<SimContextValue | null>(null);

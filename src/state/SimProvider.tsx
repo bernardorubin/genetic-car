@@ -23,6 +23,7 @@ import {
   type HallOfFameEntry,
 } from '../sim/hallOfFame';
 import { worldName } from './worldName';
+import { seedFromUrl } from './sharing';
 import { SimContext, type AchievementToast, type SimContextValue } from './SimContext';
 import {
   DEFAULT_SETTINGS,
@@ -47,6 +48,14 @@ function bootstrapInitialState(): {
   settings: SimSettings;
   hydrate: ReturnType<typeof loadAutosave>;
 } {
+  // URL-shared seed beats everything else — that's the whole point of sharing.
+  const urlSeed = seedFromUrl();
+  if (urlSeed) {
+    return {
+      settings: { ...DEFAULT_SETTINGS, seed: urlSeed },
+      hydrate: null,
+    };
+  }
   const auto = typeof window === 'undefined' ? null : loadAutosave();
   if (auto) {
     return {
@@ -57,6 +66,7 @@ function bootstrapInitialState(): {
         floor: auto.mutableFloor ? 'mutable' : 'fixed',
         roughness: auto.roughness,
         maxSlope: auto.maxSlope,
+        obstacleDensity: auto.obstacleDensity,
         maxGenSeconds: auto.maxGenSeconds,
       },
       hydrate: auto,
@@ -93,6 +103,8 @@ export function SimProvider({ children }: { children: ReactNode }) {
   const [hallOfFame, setHallOfFame] = useState<HallOfFameEntry[]>(() => loadHallOfFame());
   const [recordCelebrations, setRecordCelebrations] = useState<{ key: number; score: number }[]>([]);
   const recordKeyRef = useRef(0);
+  const [topLive, setTopLive] = useState<SimContextValue['topLive']>([]);
+  const [hasFavorite, setHasFavorite] = useState(false);
 
   // Mirror settings into a ref for the RAF loop (which doesn't re-bind on every render).
   useEffect(() => {
@@ -110,6 +122,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
       mutableFloor: settings.floor === 'mutable',
       roughness: settings.roughness,
       maxSlope: settings.maxSlope,
+      obstacleDensity: settings.obstacleDensity,
       maxGenSeconds: cur.maxGenSeconds,
       ga: {
         mutationRate: cur.mutationRate,
@@ -144,7 +157,14 @@ export function SimProvider({ children }: { children: ReactNode }) {
       );
     }
     // The RAF loop publishes fresh stats on its next tick.
-  }, [settings.seed, settings.gravity, settings.floor, settings.roughness, settings.maxSlope]);
+  }, [
+    settings.seed,
+    settings.gravity,
+    settings.floor,
+    settings.roughness,
+    settings.maxSlope,
+    settings.obstacleDensity,
+  ]);
 
   // Push live GA params into the running population without resetting it.
   useEffect(() => {
@@ -236,6 +256,8 @@ export function SimProvider({ children }: { children: ReactNode }) {
             hasBestGenome: pop.bestGenome !== null,
             hasSaved: hasSavedPopulation(),
           });
+          setTopLive(pop.topLive(5));
+          setHasFavorite(pop.favoriteGenome !== null);
         }
       }
       raf = requestAnimationFrame(loop);
@@ -310,6 +332,20 @@ export function SimProvider({ children }: { children: ReactNode }) {
     pop.enterReplayWith(genome);
   }, []);
 
+  const setFavorite = useCallback((carIndex: number) => {
+    const pop = populationRef.current;
+    if (!pop) return;
+    pop.setFavoriteByIndex(carIndex);
+    setHasFavorite(true);
+  }, []);
+
+  const clearFavorite = useCallback(() => {
+    const pop = populationRef.current;
+    if (!pop) return;
+    pop.clearFavorite();
+    setHasFavorite(false);
+  }, []);
+
   const value = useMemo<SimContextValue>(
     () => ({
       settings,
@@ -329,6 +365,10 @@ export function SimProvider({ children }: { children: ReactNode }) {
       replayGenome,
       recordCelebrations,
       dismissRecordCelebration,
+      topLive,
+      hasFavorite,
+      setFavorite,
+      clearFavorite,
     }),
     [
       settings,
@@ -348,6 +388,10 @@ export function SimProvider({ children }: { children: ReactNode }) {
       replayGenome,
       recordCelebrations,
       dismissRecordCelebration,
+      topLive,
+      hasFavorite,
+      setFavorite,
+      clearFavorite,
     ],
   );
 

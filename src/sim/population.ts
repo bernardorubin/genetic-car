@@ -16,6 +16,7 @@ export interface PopulationOptions {
   mutableFloor: boolean;
   roughness: number;
   maxSlope: number;
+  obstacleDensity: number;
   /** seconds; null = never force-end a generation on time alone (stall still applies) */
   maxGenSeconds: number | null;
   ga: GAParams;
@@ -46,6 +47,8 @@ export class Population {
 
   bestGenome: Genome | null = null;
   bestScore = 0;
+  /** Player-pinned "pet" genome. Cloned into every next gen + boosted in selection. */
+  favoriteGenome: Genome | null = null;
   /** When true, sim runs the best-ever genome alone and does NOT advance generations. */
   replayMode = false;
   private savedGenomesBeforeReplay: Genome[] | null = null;
@@ -60,7 +63,11 @@ export class Population {
   }
 
   private terrainOpts() {
-    return { roughness: this.opts.roughness, maxSlope: this.opts.maxSlope };
+    return {
+      roughness: this.opts.roughness,
+      maxSlope: this.opts.maxSlope,
+      obstacleDensity: this.opts.obstacleDensity,
+    };
   }
 
   private makeSim(genomes: Genome[], rng: Rng = this.worldRng): SimWorld {
@@ -103,7 +110,7 @@ export class Population {
       this.bestGenome = cloneGenome(sortedByScore[0].genome);
     }
 
-    this.genomes = nextGeneration(this.gaRng, scored, this.opts.ga);
+    this.genomes = nextGeneration(this.gaRng, scored, this.opts.ga, this.favoriteGenome);
     this.generation++;
 
     // Re-seed terrain only if the floor is set to mutate per generation
@@ -167,6 +174,27 @@ export class Population {
     this.sim = this.makeSim([cloneGenome(genome)], seedrandom(this.terrainSeed));
   }
 
+  /** Top-K live genomes by current-gen progress. Used by the favorite-picker UI. */
+  topLive(k = 5): { genome: Genome; score: number; carIndex: number }[] {
+    const out: { genome: Genome; score: number; carIndex: number }[] = [];
+    const cars = this.sim.cars;
+    for (let i = 0; i < cars.length; i++) {
+      const score = cars[i].maxX - cars[i].startX;
+      out.push({ genome: this.genomes[i], score, carIndex: i });
+    }
+    out.sort((a, b) => b.score - a.score);
+    return out.slice(0, k);
+  }
+
+  setFavoriteByIndex(carIndex: number): void {
+    const g = this.genomes[carIndex];
+    if (g) this.favoriteGenome = cloneGenome(g);
+  }
+
+  clearFavorite(): void {
+    this.favoriteGenome = null;
+  }
+
   exitReplay(): void {
     if (!this.replayMode || !this.savedGenomesBeforeReplay) return;
     this.replayMode = false;
@@ -183,6 +211,7 @@ export class Population {
       mutableFloor: this.opts.mutableFloor,
       roughness: this.opts.roughness,
       maxSlope: this.opts.maxSlope,
+      obstacleDensity: this.opts.obstacleDensity,
       maxGenSeconds: this.opts.maxGenSeconds,
       bestScore: this.bestScore,
       bestGenome: this.bestGenome ? cloneGenome(this.bestGenome) : null,

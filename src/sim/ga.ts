@@ -124,22 +124,37 @@ function mutateGenome(rng: Rng, g: Genome, params: GAParams): Genome {
 /**
  * Build the next generation:
  *   1. Sort by descending score
- *   2. Copy top `eliteCount` unchanged
+ *   2. Copy `favorite` and top `eliteCount` unchanged
  *   3. Fill the rest by tournament selection → crossover → mutation
+ *
+ * A favorite genome is the player's "pet pick" — preserved exactly, plus gets
+ * extra weight in selection so it influences crossover beyond just elitism.
  */
 export function nextGeneration(
   rng: Rng,
   scored: ScoredGenome[],
   params: GAParams,
+  favorite: Genome | null = null,
 ): Genome[] {
   const sorted = [...scored].sort((a, b) => b.score - a.score);
   const size = sorted.length;
   const elites = Math.min(params.eliteCount, size);
   const next: Genome[] = [];
-  for (let i = 0; i < elites; i++) next.push(cloneGenome(sorted[i].genome));
+  // Favorite is always the first elite — even if its score didn't make the cut.
+  if (favorite) next.push(cloneGenome(favorite));
+  for (let i = 0; next.length < elites + (favorite ? 1 : 0) && i < size; i++) {
+    next.push(cloneGenome(sorted[i].genome));
+  }
+  // Augment the tournament pool with extra copies of the favorite so it shows
+  // up in selection draws more often than its score alone would warrant.
+  const pool: ScoredGenome[] = [...sorted];
+  if (favorite) {
+    const favScore = sorted[0]?.score ?? 1; // give it tournament-winning weight
+    for (let i = 0; i < 3; i++) pool.push({ genome: favorite, score: favScore });
+  }
   while (next.length < size) {
-    const a = tournamentPick(rng, sorted);
-    const b = tournamentPick(rng, sorted);
+    const a = tournamentPick(rng, pool);
+    const b = tournamentPick(rng, pool);
     next.push(mutateGenome(rng, crossover(rng, a, b), params));
   }
   return next;

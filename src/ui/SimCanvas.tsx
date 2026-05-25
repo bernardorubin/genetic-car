@@ -1,10 +1,16 @@
 import { useEffect, useRef } from 'react';
 import { drawWorld } from '../render/canvas';
+import { activeCosmeticGlow } from '../sim/cosmetics';
 import { useSim } from '../state/useSim';
 
 export function SimCanvas() {
   const ref = useRef<HTMLCanvasElement>(null);
-  const { getPopulation, settings } = useSim();
+  const { getPopulation, settings, unlockedAchievements } = useSim();
+  // Latest unlocked-achievement set in a ref so the RAF loop doesn't have to re-bind.
+  const unlockedRef = useRef(unlockedAchievements);
+  useEffect(() => {
+    unlockedRef.current = unlockedAchievements;
+  }, [unlockedAchievements]);
 
   useEffect(() => {
     const canvas = ref.current;
@@ -28,7 +34,8 @@ export function SimCanvas() {
       if (pop && settings.render) {
         ctx.save();
         ctx.scale(dpr, dpr);
-        drawWorld(ctx, pop.sim, canvas.clientWidth, canvas.clientHeight);
+        const leaderGlow = activeCosmeticGlow(unlockedRef.current);
+        drawWorld(ctx, pop.sim, canvas.clientWidth, canvas.clientHeight, { leaderGlow });
         ctx.restore();
       } else {
         // Render is off — clear once so we don't leave a stale frame.

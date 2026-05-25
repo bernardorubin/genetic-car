@@ -34,6 +34,8 @@ export interface SimSettings {
   roughness: number;
   /** 0..1 — clamp on per-step slope (cliff allowance) */
   maxSlope: number;
+  /** 0..1 — probability of injecting an obstacle feature per terrain segment */
+  obstacleDensity: number;
   /** seconds; null = no time cap (stall detector still ends idle gens) */
   maxGenSeconds: number | null;
   seed: string;
@@ -64,6 +66,7 @@ export const DEFAULT_SETTINGS: SimSettings = {
   floor: 'fixed',
   roughness: 0.45,
   maxSlope: 0.5,
+  obstacleDensity: 0.06,
   maxGenSeconds: null,
   seed: '',
   render: true,

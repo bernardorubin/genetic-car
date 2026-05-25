@@ -22,11 +22,17 @@ const COLOR_WHEEL_FILL = 'rgba(163, 230, 53, 0.10)';
 const COLOR_WHEEL_STROKE = 'rgba(163, 230, 53, 0.95)';
 const COLOR_WHEEL_DEAD = 'rgba(255,255,255,0.18)';
 
+export interface DrawOptions {
+  /** rgba color for the leader's halo, or null to skip. */
+  leaderGlow: string | null;
+}
+
 export function drawWorld(
   ctx: CanvasRenderingContext2D,
   sim: SimWorld,
   width: number,
   height: number,
+  opts: DrawOptions = { leaderGlow: null },
 ): void {
   ctx.clearRect(0, 0, width, height);
   drawBackdrop(ctx, width, height);
@@ -44,7 +50,7 @@ export function drawWorld(
   drawTerrain(ctx, sim);
 
   const leader = sim.leader();
-  for (const car of sim.cars) drawCar(ctx, car, car === leader);
+  for (const car of sim.cars) drawCar(ctx, car, car === leader, opts);
 
   ctx.restore();
 
@@ -134,12 +140,30 @@ function drawTierMarkers(ctx: CanvasRenderingContext2D, baseY: number, maxX: num
   }
 }
 
-function drawCar(ctx: CanvasRenderingContext2D, car: Car, isLeader: boolean) {
+function drawCar(ctx: CanvasRenderingContext2D, car: Car, isLeader: boolean, opts: DrawOptions) {
   const xf = car.chassis.getTransform();
 
   // Transform vertices once.
   const verts = car.chassisVerts.map((v) => transform(xf.p, xf.q.c, xf.q.s, v));
   const center = transform(xf.p, xf.q.c, xf.q.s, { x: 0, y: 0 });
+
+  // Cosmetic glow — only on the alive leader. Highest-tier unlocked color.
+  if (isLeader && car.alive && opts.leaderGlow) {
+    // Bounding radius for the glow: max chassis vertex magnitude + small pad
+    let maxR = 0;
+    for (const v of car.chassisVerts) {
+      const m = Math.hypot(v.x, v.y);
+      if (m > maxR) maxR = m;
+    }
+    const radius = maxR + 0.4;
+    const grad = ctx.createRadialGradient(center.x, center.y, 0, center.x, center.y, radius);
+    grad.addColorStop(0, opts.leaderGlow);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   // Color tokens for this car.
   let fillBase: string;

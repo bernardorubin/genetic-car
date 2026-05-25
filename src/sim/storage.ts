@@ -29,6 +29,7 @@ interface SavedSnapshot {
   mutableFloor: boolean;
   roughness: number;
   maxSlope: number;
+  obstacleDensity: number;
   maxGenSeconds: number | null;
   bestScore: number;
   bestGenome: SerializedGenome | null;
@@ -98,6 +99,7 @@ export interface RestoredPopulation {
   mutableFloor: boolean;
   roughness: number;
   maxSlope: number;
+  obstacleDensity: number;
   maxGenSeconds: number | null;
   bestScore: number;
   bestGenome: Genome | null;
@@ -119,6 +121,7 @@ function readSnapshot(key: string): RestoredPopulation | null {
       mutableFloor: parsed.mutableFloor ?? false,
       roughness: parsed.roughness ?? 0.45,
       maxSlope: parsed.maxSlope ?? 0.5,
+      obstacleDensity: parsed.obstacleDensity ?? 0.06,
       maxGenSeconds: parsed.maxGenSeconds === undefined ? null : parsed.maxGenSeconds,
       bestScore: parsed.bestScore ?? 0,
       bestGenome: parsed.bestGenome ? fromSerialized(parsed.bestGenome) : null,

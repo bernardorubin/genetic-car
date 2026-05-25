@@ -3,6 +3,9 @@ import { useSim } from '../state/useSim';
 import { FitnessGraph } from './FitnessGraph';
 import { HallOfFame } from './HallOfFame';
 import { AchievementsList } from './AchievementsList';
+import { TrackPicker } from './TrackPicker';
+import { FavoritePicker } from './FavoritePicker';
+import { ShareBar } from './ShareBar';
 
 export function Sidebar() {
   const { settings, stats, setSetting, newPopulation, regenWorld, save, restore, toggleReplay } = useSim();
@@ -58,6 +61,14 @@ export function Sidebar() {
       </section>
 
       <section>
+        <SectionHeading>track</SectionHeading>
+        <TrackPicker />
+        <p className="mt-2 text-[10px] font-mono text-ink-500 leading-relaxed">
+          presets bulk-set gravity, terrain, and obstacles. tweak below to enter "custom".
+        </p>
+      </section>
+
+      <section>
         <SectionHeading>world</SectionHeading>
         <Select<GravityKey>
           label="gravity"
@@ -97,8 +108,17 @@ export function Sidebar() {
           format={(v) => `${(v * 100).toFixed(0)}%`}
           onChange={(v) => setSetting('maxSlope', v)}
         />
+        <Slider
+          label="obstacles"
+          value={settings.obstacleDensity}
+          min={0}
+          max={0.3}
+          step={0.005}
+          format={(v) => `${(v * 100).toFixed(1)}%`}
+          onChange={(v) => setSetting('obstacleDensity', v)}
+        />
         <p className="-mt-1 mb-3 text-[10px] font-mono text-ink-500">
-          terrain gets harder farther from spawn
+          spike pits + ramps sprinkled past 60m
         </p>
         <div className="mt-3">
           <label className="block text-[10px] font-mono uppercase tracking-[0.18em] text-ink-500 mb-1.5">
@@ -121,6 +141,7 @@ export function Sidebar() {
           <p className="mt-1.5 text-[10px] font-mono text-ink-500">
             same seed · same terrain · same evolution
           </p>
+          <ShareBar />
         </div>
       </section>
 
@@ -170,6 +191,11 @@ export function Sidebar() {
       <section>
         <SectionHeading>fitness · last 100 gens</SectionHeading>
         <FitnessGraph />
+      </section>
+
+      <section>
+        <SectionHeading>favorite · breeding boost</SectionHeading>
+        <FavoritePicker />
       </section>
 
       <section>
