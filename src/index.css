@@ -34,6 +34,23 @@ html, body, #root {
   -webkit-font-smoothing: antialiased;
 }
 
+html, body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+#root {
+  /* dvh pins the layout to the *visible* viewport on mobile so the HUD and the
+     control sheet don't jump when the browser's address bar shows/hides. */
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   background:
     radial-gradient(1200px 600px at 10% -10%, rgba(56, 189, 248, 0.10), transparent 60%),
@@ -53,6 +70,35 @@ body {
 
 @utility hairline {
   border: 1px solid rgba(255,255,255,0.06);
+}
+
+/* More opaque glass for the mobile control sheet — it sits over a busy,
+   high-contrast canvas, so the translucent `glass` recipe isn't legible. */
+@utility glass-strong {
+  background: linear-gradient(180deg, rgba(20,24,38,0.94), rgba(11,13,21,0.97));
+  border: 1px solid rgba(255,255,255,0.10);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.05) inset,
+    0 -24px 70px -24px rgba(0,0,0,0.75);
+}
+
+/* Touch: give range sliders a taller hit area so they're comfortable to drag
+   with a thumb. The native accent thumb/track is retained. */
+@media (pointer: coarse) {
+  input[type="range"] {
+    height: 1.75rem;
+  }
+}
+
+@keyframes fab-glow {
+  0%, 100% { box-shadow: 0 10px 34px -10px rgba(0,0,0,0.7), 0 0 0 0 rgba(56,189,248,0); }
+  50%      { box-shadow: 0 10px 34px -10px rgba(0,0,0,0.7), 0 0 0 7px rgba(56,189,248,0.10); }
+}
+
+.fab-glow {
+  animation: fab-glow 2.8s ease-in-out infinite;
 }
 
 @keyframes achievement-slide {

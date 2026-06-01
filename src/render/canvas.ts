@@ -53,8 +53,6 @@ export function drawWorld(
   for (const car of sim.cars) drawCar(ctx, car, car === leader, opts);
 
   ctx.restore();
-
-  drawDistanceMarkers(ctx, sim, width);
 }
 
 function drawBackdrop(ctx: CanvasRenderingContext2D, w: number, h: number) {
@@ -253,23 +251,6 @@ function drawCar(ctx: CanvasRenderingContext2D, car: Car, isLeader: boolean, opt
     ctx.lineTo(wxf.p.x + Math.cos(angle) * r, wxf.p.y + Math.sin(angle) * r);
     ctx.stroke();
   }
-}
-
-function drawDistanceMarkers(
-  ctx: CanvasRenderingContext2D,
-  sim: SimWorld,
-  width: number,
-) {
-  // Screen-space label of camera x in meters, top-right corner of the canvas.
-  const leader = sim.leader();
-  if (!leader) return;
-  const dist = leader.maxX.toFixed(1) + ' m';
-  ctx.font = '12px ui-monospace, "JetBrains Mono", monospace';
-  ctx.textBaseline = 'top';
-  ctx.textAlign = 'right';
-  ctx.fillStyle = 'rgba(200,206,224,0.6)';
-  ctx.fillText(`leader · ${dist}`, width - 16, 16);
-  ctx.textAlign = 'left';
 }
 
 function transform(

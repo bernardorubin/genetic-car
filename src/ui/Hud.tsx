@@ -1,31 +1,72 @@
 import { useSim } from '../state/useSim';
+import { worldName } from '../state/worldName';
 
 export function Hud() {
   const { stats, settings } = useSim();
+  const running = settings.render;
 
   return (
-    <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none">
-      <div className="glass rounded-xl px-3 py-2 flex items-center gap-5 pointer-events-auto">
-        <Stat label="generation" value={stats.generation.toString()} />
-        <Stat label="alive" value={`${stats.alive}/${stats.total}`} />
-        <Stat label="best dist" value={`${stats.best.toFixed(1)} m`} accent="text-accent-400" />
-        <Stat label="avg dist" value={`${stats.avg.toFixed(1)} m`} />
-      </div>
-      <div className="flex items-center gap-3 pointer-events-auto">
-        <div className="glass rounded-xl px-3 py-2 flex items-center gap-2">
-          <span className="text-[10px] font-mono uppercase tracking-[0.16em] text-ink-500">
-            all-time
-          </span>
-          <span className="text-sm font-mono text-amber-400">
-            {stats.topScore.toFixed(1)} m
-          </span>
+    <>
+      {/* Mobile: compact scoreboard. World + progress on the left, the headline
+          "best" distance on the right, sized like a game score. */}
+      <div className="lg:hidden absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-2.5 pointer-events-none">
+        <div className="glass rounded-xl px-3 py-2 min-w-0 pointer-events-auto">
+          <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-ink-300 truncate">
+            {worldName(settings.seed)}
+          </div>
+          <div className="mt-0.5 flex items-baseline gap-2 font-mono leading-none">
+            <span className="text-ink-50 text-sm">gen {stats.generation}</span>
+            <span className="text-ink-500 text-[11px]">
+              {stats.alive}/{stats.total} alive
+            </span>
+          </div>
         </div>
-        <div className="glass rounded-xl px-3 py-1.5 text-[11px] font-mono text-ink-300 flex items-center gap-2">
-          <span className={`inline-block w-1.5 h-1.5 rounded-full ${settings.render ? 'bg-lime-400' : 'bg-amber-400'}`} />
-          {settings.render ? 'running · 2x' : 'fast · 12x · no render'}
+
+        <div className="glass rounded-xl px-3 py-2 flex flex-col items-end pointer-events-auto">
+          <div className="flex items-center gap-1.5">
+            <span
+              className={`inline-block w-1.5 h-1.5 rounded-full ${running ? 'bg-lime-400' : 'bg-amber-400'}`}
+            />
+            <span className="text-[10px] font-mono uppercase tracking-[0.16em] text-ink-500">
+              best
+            </span>
+          </div>
+          <div className="font-mono text-accent-400 leading-none mt-1">
+            <span className="text-xl">{stats.best.toFixed(1)}</span>
+            <span className="text-sm text-ink-500">m</span>
+          </div>
+          <div className="text-[10px] font-mono text-amber-400 leading-none mt-1">
+            all-time {stats.topScore.toFixed(1)}m
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Desktop: full instrument readout. */}
+      <div className="hidden lg:flex absolute top-3 left-3 right-3 items-center justify-between pointer-events-none">
+        <div className="glass rounded-xl px-3 py-2 flex items-center gap-5 pointer-events-auto">
+          <Stat label="generation" value={stats.generation.toString()} />
+          <Stat label="alive" value={`${stats.alive}/${stats.total}`} />
+          <Stat label="best dist" value={`${stats.best.toFixed(1)} m`} accent="text-accent-400" />
+          <Stat label="avg dist" value={`${stats.avg.toFixed(1)} m`} />
+        </div>
+        <div className="flex items-center gap-3 pointer-events-auto">
+          <div className="glass rounded-xl px-3 py-2 flex items-center gap-2">
+            <span className="text-[10px] font-mono uppercase tracking-[0.16em] text-ink-500">
+              all-time
+            </span>
+            <span className="text-sm font-mono text-amber-400">
+              {stats.topScore.toFixed(1)} m
+            </span>
+          </div>
+          <div className="glass rounded-xl px-3 py-1.5 text-[11px] font-mono text-ink-300 flex items-center gap-2">
+            <span
+              className={`inline-block w-1.5 h-1.5 rounded-full ${running ? 'bg-lime-400' : 'bg-amber-400'}`}
+            />
+            {running ? 'running · 2x' : 'fast · 12x · no render'}
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 

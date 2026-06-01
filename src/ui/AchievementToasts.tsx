@@ -18,13 +18,13 @@ export function AchievementToasts() {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-none z-10">
+    <div className="absolute bottom-24 lg:bottom-6 left-1/2 -translate-x-1/2 w-[min(22rem,calc(100vw-1.5rem))] flex flex-col items-center gap-2 pointer-events-none z-10">
       {toasts.map((t) => (
         <button
           key={t.key}
           type="button"
           onClick={() => dismissToast(t.key)}
-          className="achievement-toast glass rounded-xl px-4 py-2.5 flex items-center gap-3 pointer-events-auto hover:bg-white/5 transition"
+          className="achievement-toast glass rounded-xl px-4 py-2.5 w-full flex items-center gap-3 pointer-events-auto hover:bg-white/5 transition"
           style={{ animation: 'achievement-slide 320ms cubic-bezier(.2,.7,.3,1)' }}
         >
           <span className="text-lg leading-none">★</span>
