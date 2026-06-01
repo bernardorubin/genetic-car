@@ -41,11 +41,21 @@ src/
   ui/                      # React components only — never imports planck
     SimCanvas.tsx          # mounts canvas + drives render-side RAF (sim ticks live in SimProvider)
     Sidebar.tsx            # control panel (sliders, selects, action buttons)
-    Hud.tsx                # overlay stats (gen, alive, best, avg, run/fast pill)
+    Hud.tsx                # overlay stats — mobile (compact scoreboard) + desktop (full readout), toggled by Tailwind breakpoints
     FitnessGraph.tsx       # per-generation best / top10 avg / avg chart
+    MobileControls.tsx     # <lg bottom-sheet: FAB + swipe-dismiss glass sheet wrapping <Sidebar/>
+    useMediaQuery.ts       # matchMedia hook (own file for react-refresh)
 ```
 
 **Boundary rule**: `sim/` and `render/` must not import React or anything from `ui/`. UI talks to the sim through a single imperative facade (`Population`) exposed via the `useSim()` hook. Per-frame state (positions, scores) flows through the canvas directly — React state holds only UI knobs and throttled per-generation summaries.
+
+## Responsive layout
+
+`App.tsx` switches at `lg` (1024px) via `useMediaQuery` — a **JS** breakpoint, not just CSS `hidden`. Below `lg`: full-bleed canvas + `<MobileControls>` bottom sheet. At `lg`+: the original `grid-cols-[1fr_340px]`. The Sidebar is heavy (canvas effects, context subs), so it must mount in exactly **one** place — hence conditional render (`isDesktop ? <aside> : <MobileControls/>`) instead of double-mounting two CSS-hidden copies. The sheet stays mounted (translated off-screen when closed) so open/close both animate and the FitnessGraph canvas keeps a measured width.
+
+Mobile foundations live in `index.css`: `#root` uses `100dvh` (URL-bar-safe), `glass-strong` (opaque sheet legible over the canvas), taller range sliders on `pointer: coarse`. `index.html` carries `viewport-fit=cover` + `theme-color`; safe-area insets are applied via `env(safe-area-inset-*)`.
+
+**Gotcha**: the canvas renderer used to draw its own top-right `leader · Xm` label. It was invisible on desktop (covered by HUD glass pills) but bled through the translucent mobile HUD chip and collided. It was removed — the DOM `Hud` is the single source of truth for distance. Don't re-add a canvas-drawn HUD label.
 
 ## State + simulation loop
 
