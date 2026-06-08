@@ -1,3 +1,5 @@
+import { BetaBadge } from './BetaBadge';
+
 export type LabMode = '2d' | '3d';
 
 /** Header segmented control to flip between the 2D and 3D labs. The 3D side stays
@@ -22,11 +24,18 @@ export function ModeSwitch({
         onClick={() => unlocked3d && onChange('3d')}
         title={
           unlocked3d
-            ? 'Switch to the 3D lab'
+            ? 'Switch to the 3D lab (beta)'
             : 'Reach gen 20 or 500m in the 2D lab to unlock'
         }
       >
-        {unlocked3d ? '3D' : '🔒 3D'}
+        {unlocked3d ? (
+          <span className="flex items-center gap-1">
+            3D
+            <BetaBadge />
+          </span>
+        ) : (
+          '🔒 3D'
+        )}
       </Seg>
     </div>
   );

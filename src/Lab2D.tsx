@@ -7,6 +7,7 @@ import { WorldBadge } from './ui/WorldBadge';
 import { AchievementToasts } from './ui/AchievementToasts';
 import { RecordCelebration } from './ui/RecordCelebration';
 import { MobileControls } from './ui/MobileControls';
+import { InfoButton } from './ui/InfoButton';
 import { useMediaQuery } from './ui/useMediaQuery';
 
 export function Lab2D({ modeSwitch }: { modeSwitch?: ReactNode }) {
@@ -35,6 +36,7 @@ export function Lab2D({ modeSwitch }: { modeSwitch?: ReactNode }) {
             </span>
           </div>
           <div className="flex items-center gap-3 text-xs font-mono text-ink-300">
+            <InfoButton mode="2d" />
             <div className="hidden lg:flex">
               <WorldBadge />
             </div>

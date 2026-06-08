@@ -5,6 +5,8 @@ import { Scene3D } from './ui3d/Scene3D';
 import { Hud3D } from './ui3d/Hud3D';
 import { Sidebar3D } from './ui3d/Sidebar3D';
 import { MobileControls } from './ui/MobileControls';
+import { InfoButton } from './ui/InfoButton';
+import { BetaBadge } from './ui/BetaBadge';
 import { useMediaQuery } from './ui/useMediaQuery';
 
 export function Lab3D({ modeSwitch }: { modeSwitch?: ReactNode }) {
@@ -29,11 +31,13 @@ function Lab3DInner({ modeSwitch }: { modeSwitch?: ReactNode }) {
           <span className="text-ink-50 text-lg font-semibold tracking-tight whitespace-nowrap">
             genetic<span className="text-accent-400">.cars</span>
           </span>
-          <span className="hidden md:inline text-ink-500 text-xs font-mono uppercase tracking-[0.18em]">
+          <span className="hidden md:flex items-center gap-2 text-ink-500 text-xs font-mono uppercase tracking-[0.18em]">
             evolutionary 3D vehicle lab
+            <BetaBadge />
           </span>
         </div>
         <div className="flex items-center gap-3 text-xs font-mono text-ink-300">
+          <InfoButton mode="3d" />
           {modeSwitch}
           <a
             href="https://github.com/bernardorubin/genetic-car"
