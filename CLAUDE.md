@@ -174,8 +174,9 @@ Same user seed + same params = byte-identical run. This is why we route every ra
 
 ## 3D lab (a second, unlockable experience)
 
-A 3D version of the same concept lives **alongside** the 2D lab. It evolves box-chassis
-vehicles (up to 3 mirrored axles → 2/4/6 wheels) over 3D terrain. The 2D lab is unchanged.
+A 3D version of the same concept lives **alongside** the 2D lab. It evolves vehicles
+(box chassis + optional welded pod, up to 3 mirrored axles → 2/4/6 wheels, per-axle struts)
+over a banked-channel 3D terrain. The 2D lab is unchanged.
 
 - **Stack**: Three.js + React Three Fiber (render only) + **Rapier 3D** (`@dimforge/rapier3d-compat`).
   Mirrors the 2D architecture: the **sim owns and steps its own Rapier world** (`sim3d/world3d.ts`,
@@ -198,7 +199,29 @@ vehicles (up to 3 mirrored axles → 2/4/6 wheels) over 3D terrain. The 2D lab i
 - **Terrain is a TRIMESH, not a heightfield** (`terrain3d.ts` `terrainMeshData`). A Rapier heightfield's
   row/col layout was ambiguous and let **every car fall straight through the floor**. The trimesh is
   built from the *same vertices the renderer draws*, so the physics floor is exactly the visible floor.
-  Don't switch back to a heightfield without solving that layout.
+  Don't switch back to a heightfield without solving that layout. The mesh is an `(nrows+1) × NCOLS(9)`
+  grid; triangle winding `(a,b,cc)/(b,d,cc)` gives **upward (+Y) normals** — verify a dropped car rests
+  on top after changing it (the documented fall-through failure mode).
+- **Banked-channel terrain = containment.** Instead of invisible walls, the outer columns curl up into
+  cosine **berms** (`bermRaise`, central `FLAT_FRAC` is drivable, edges rise `BERM_HEIGHT`). Cars stay in
+  the lane physically. `trackWidth` (a setting) is the full mesh width; `world3d.step()` has a hard
+  Z-kill backstop (`|z| > trackWidth/2 + margin`) for any car that still vaults a berm. The forward
+  profile is a slope-walk with **mean-reversion** (`SLOPE_DECAY`) — without it the slope runs away into a
+  multi-hundred-metre plunge instead of rolling hills.
+- **Morphology variety is a SETTING, not a gene.** The genome is fixed-shape; `bodyVariety` /
+  `wheelSizeSpread` (settings) are passed into the `decode*` helpers and *lerp each gene's band* from a
+  tame "uniform" anchor (variety 0 = identical grey boxes) to the full wild range (variety 1). This keeps
+  decode deterministic (no RNG) and lets the knobs apply via an in-place sim swap
+  (`Population3D.applyCarOpts`, mirrors `applyVaryTorque`) **without discarding the population**. New genes:
+  `strutLen` (per-axle leg, the wheel sits lower — revolute-at-offset, NOT a welded rod), `seg2*` (welded
+  cabin/pod = a 2nd cuboid collider on the SAME body), `hue` (per-car color, always on). Spawn-Y in
+  `world3d` must decode with the real variety + strut or tall/legged cars spawn buried.
+- **Dead cars freeze** (`world3d.killCar`): on any death the bodies become `Fixed`, so a car that ramps
+  off a berm stops where it dies instead of flying through the sky as a dim body. Cars never collide with
+  each other, so a frozen body can't block the living.
+- **3D-only controls** diverge from 2D: `ui3d/WorldPreset3D.tsx` + `sim3d/worldPresets3d.ts` (a TrackPicker
+  parallel — Flatlands/Rolling/Hills/Mountains bulk-set gravity/roughness/maxSlope/trackWidth), plus a
+  `morphology` section (body variety, wheel-size spread) and a track-width slider in `Sidebar3D`.
 - **Free old worlds**: a fresh Rapier `World` is built every generation. `SimWorld3D.dispose()`
   (`world.free()`) is called via `Population3D.swapSim()` before each swap — without it the WASM heap
   grows unbounded over a long run.
@@ -206,6 +229,8 @@ vehicles (up to 3 mirrored axles → 2/4/6 wheels) over 3D terrain. The 2D lab i
   → reproducible. Cross-device byte-identical would need the `-deterministic` build (a future swap, only
   needed for the headless-worker milestone, which is deferred).
 - **Storage**: separate `genetic-cars-3d:*` localStorage namespace (`storage3d.ts`), independent of 2D.
+  Currently **v2** (bumped when the genome gained strut/pod/hue genes + morphology settings). Bump the
+  `KEY`/`AUTO_KEY` version on any genome-shape change; old saves are silently dropped (no migration).
 
 ## Conventions
 
