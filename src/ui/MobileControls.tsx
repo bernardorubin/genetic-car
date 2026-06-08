@@ -1,14 +1,13 @@
-import { useRef, useState } from 'react';
-import { Sidebar } from './Sidebar';
+import { useRef, useState, type ReactNode } from 'react';
 
 // Distance (px) the sheet must be dragged down before release dismisses it.
 const DISMISS_THRESHOLD = 110;
 
-// Bottom-sheet control surface for phones/tablets. The full desktop Sidebar is
+// Bottom-sheet control surface for phones/tablets. The given sidebar content is
 // reused verbatim inside a glass sheet that slides up over the simulation. The
 // sheet stays mounted (translated off-screen when closed) so open/close both
 // animate, and so the FitnessGraph canvas keeps a real measured width.
-export function MobileControls() {
+export function MobileControls({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [dragY, setDragY] = useState(0);
   // `dragging` drives the render (transition is disabled mid-drag for 1:1 finger
@@ -105,7 +104,7 @@ export function MobileControls() {
         </div>
 
         <div className="min-h-0 overflow-y-auto overscroll-contain pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-          <Sidebar />
+          {children}
         </div>
       </div>
     </>

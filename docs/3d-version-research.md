@@ -1,5 +1,12 @@
 # 3D genetic cars — stack research
 
+> **Status: implemented.** The recommended stack below (Rapier 3D + React Three Fiber)
+> shipped as a second, unlockable lab — see the "3D lab" section in the root `CLAUDE.md`.
+> Two deltas from the research: (1) terrain uses a **trimesh** collider, not a heightfield
+> (the heightfield's row/col layout let cars fall through the floor); (2) the GA runs on the
+> **main thread** like the 2D app — the headless **Web-Worker pool is still deferred** as the
+> next performance milestone.
+
 Research for a 3D successor to this 2D `genetic.cars` project: evolve 3D vehicles
 (chassis + wheels/joints) over 3D terrain with a genetic algorithm, in the browser.
 Sources checked are current as of early 2026; physics-engine determinism and vehicle

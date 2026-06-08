@@ -172,6 +172,41 @@ Every Population owns three derived seeds, all stamped from one user-facing seed
 
 Same user seed + same params = byte-identical run. This is why we route every random call through an injected `Rng` function in `genome.ts`, `terrain.ts`, and `ga.ts` instead of touching `Math.random()`.
 
+## 3D lab (a second, unlockable experience)
+
+A 3D version of the same concept lives **alongside** the 2D lab. It evolves box-chassis
+vehicles (up to 3 mirrored axles → 2/4/6 wheels) over 3D terrain. The 2D lab is unchanged.
+
+- **Stack**: Three.js + React Three Fiber (render only) + **Rapier 3D** (`@dimforge/rapier3d-compat`).
+  Mirrors the 2D architecture: the **sim owns and steps its own Rapier world** (`sim3d/world3d.ts`,
+  no React); R3F (`ui3d/Scene3D.tsx`) only *reads body transforms* each frame via `useFrame`.
+  We do **not** use `@react-three/rapier` (it couples physics to the render loop and breaks fast mode).
+- **Modules**: `sim3d/` (genome3d, ga3d, terrain3d, car3d, world3d, population3d, storage3d — all
+  pure, parallel to `sim/`), `state3d/` (Sim3DProvider + context + hook, mirrors `state/`), `ui3d/`
+  (Scene3D, Hud3D, Sidebar3D). Shared UI lives in `ui/controls.tsx` + `ui/FitnessGraphCanvas.tsx`
+  (both labs import them). `ga3d.ts` is a deliberate parallel of `ga.ts` (different genome shape).
+- **Shell**: `App.tsx` is an `AppShell` holding `mode: '2d'|'3d'` + a header `[2D|3D]` switch
+  (`ui/ModeSwitch.tsx`). `Lab2D`/`Lab3D` are the two experiences; `Lab3D` is **lazy-loaded**
+  (`React.lazy`) so 2D sessions never download Three+Rapier (it's a separate ~3MB chunk).
+- **Unlock gate**: 3D starts locked. `sim/unlock3d.ts` persists the flag; the 2D `SimProvider`
+  gen-completion hook fires `shouldUnlock3d(gen, bestScore)` → `gen >= 20 || bestScore >= 500`, marks
+  it, and dispatches a `window` `CustomEvent('genetic-cars:unlock-3d')`. `AppShell` listens, enables
+  the switch, and shows `Unlock3DCelebration`.
+- **Rapier init**: `Sim3DProvider` must `await RAPIER.init()` once before building `Population3D`
+  (renders a "booting physics…" state until `ready`). StrictMode double-mounts the init effect — the
+  `mounted` guard handles it.
+- **Terrain is a TRIMESH, not a heightfield** (`terrain3d.ts` `terrainMeshData`). A Rapier heightfield's
+  row/col layout was ambiguous and let **every car fall straight through the floor**. The trimesh is
+  built from the *same vertices the renderer draws*, so the physics floor is exactly the visible floor.
+  Don't switch back to a heightfield without solving that layout.
+- **Free old worlds**: a fresh Rapier `World` is built every generation. `SimWorld3D.dispose()`
+  (`world.free()`) is called via `Population3D.swapSim()` before each swap — without it the WASM heap
+  grows unbounded over a long run.
+- **Determinism**: `rapier3d-compat` is locally deterministic (same machine). Seeded GA + same machine
+  → reproducible. Cross-device byte-identical would need the `-deterministic` build (a future swap, only
+  needed for the headless-worker milestone, which is deferred).
+- **Storage**: separate `genetic-cars-3d:*` localStorage namespace (`storage3d.ts`), independent of 2D.
+
 ## Conventions
 
 - **No `any`, no `@ts-ignore`, no `eslint-disable`**. Strict TS. If a planck typing is wrong, narrow it locally with a typed wrapper.

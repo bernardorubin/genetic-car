@@ -1,75 +1,64 @@
-import { Sidebar } from './ui/Sidebar';
-import { Hud } from './ui/Hud';
-import { SimCanvas } from './ui/SimCanvas';
-import { SimProvider } from './state/SimProvider';
-import { WorldBadge } from './ui/WorldBadge';
-import { AchievementToasts } from './ui/AchievementToasts';
-import { RecordCelebration } from './ui/RecordCelebration';
-import { MobileControls } from './ui/MobileControls';
-import { useMediaQuery } from './ui/useMediaQuery';
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
+import { Lab2D } from './Lab2D';
+import { ModeSwitch, type LabMode } from './ui/ModeSwitch';
+import { Unlock3DCelebration } from './ui/Unlock3DCelebration';
+import { UNLOCK_EVENT, isUnlocked3d } from './sim/unlock3d';
+
+// The 3D lab pulls in Three.js + Rapier (a few MB), so it's loaded on demand —
+// 2D-only sessions never download it.
+const Lab3D = lazy(() => import('./Lab3D').then((m) => ({ default: m.Lab3D })));
 
 export default function App() {
-  // Below this width the 340px sidebar would starve the canvas, so we switch to
-  // a full-bleed canvas + bottom-sheet controls. Rendered conditionally (not
-  // just CSS-hidden) so the heavy Sidebar tree mounts in exactly one place.
-  const isDesktop = useMediaQuery('(min-width: 1024px)');
+  const [mode, setMode] = useState<LabMode>('2d');
+  const [unlocked3d, setUnlocked3d] = useState(isUnlocked3d);
+  const [celebrate, setCelebrate] = useState(false);
+
+  // The 2D SimProvider dispatches this event the first time a run hits the unlock
+  // milestone. The shell owns the unlocked state so the header switch + celebration
+  // stay decoupled from the 2D sim internals.
+  useEffect(() => {
+    const onUnlock = () => {
+      setUnlocked3d(true);
+      setCelebrate(true);
+    };
+    window.addEventListener(UNLOCK_EVENT, onUnlock);
+    return () => window.removeEventListener(UNLOCK_EVENT, onUnlock);
+  }, []);
+
+  const enter3d = useCallback(() => {
+    setMode('3d');
+    setCelebrate(false);
+  }, []);
+
+  const modeSwitch = (
+    <ModeSwitch mode={mode} unlocked3d={unlocked3d} onChange={setMode} />
+  );
 
   return (
-    <SimProvider>
-      <div className="h-full w-full flex flex-col">
-        <header
-          className="flex items-center justify-between gap-3 px-4 lg:px-6 py-3 lg:py-4"
-          style={
-            isDesktop
-              ? undefined
-              : { paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }
-          }
-        >
-          <div className="flex items-baseline gap-3 min-w-0">
-            <span className="text-ink-50 text-lg font-semibold tracking-tight whitespace-nowrap">
-              genetic<span className="text-accent-400">.cars</span>
-            </span>
-            <span className="hidden md:inline text-ink-500 text-xs font-mono uppercase tracking-[0.18em]">
-              evolutionary 2D vehicle lab
-            </span>
-          </div>
-          <div className="flex items-center gap-3 text-xs font-mono text-ink-300">
-            <div className="hidden lg:flex">
-              <WorldBadge />
-            </div>
-            <a
-              href="https://github.com/bernardorubin/genetic-car"
-              target="_blank"
-              rel="noreferrer"
-              className="hover:text-ink-50 transition whitespace-nowrap"
-            >
-              github ↗
-            </a>
-          </div>
-        </header>
+    <>
+      {mode === '2d' ? (
+        <Lab2D modeSwitch={modeSwitch} />
+      ) : (
+        <Suspense fallback={<Lab3DLoading />}>
+          <Lab3D modeSwitch={modeSwitch} />
+        </Suspense>
+      )}
+      {celebrate && (
+        <Unlock3DCelebration onEnter={enter3d} onDismiss={() => setCelebrate(false)} />
+      )}
+    </>
+  );
+}
 
-        <main
-          className={
-            isDesktop
-              ? 'flex-1 min-h-0 grid grid-cols-[1fr_340px] gap-4 px-6 pb-6'
-              : 'flex-1 min-h-0 px-3 pb-3'
-          }
-        >
-          <section className="relative glass rounded-2xl overflow-hidden h-full min-h-0">
-            <SimCanvas />
-            <Hud />
-            <RecordCelebration />
-            <AchievementToasts />
-          </section>
-          {isDesktop && (
-            <aside className="glass rounded-2xl overflow-y-auto">
-              <Sidebar />
-            </aside>
-          )}
-        </main>
-
-        {!isDesktop && <MobileControls />}
+function Lab3DLoading() {
+  return (
+    <div className="h-full w-full flex items-center justify-center">
+      <div className="text-center">
+        <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-accent-400">
+          3D lab
+        </div>
+        <div className="mt-2 text-ink-300 text-sm font-mono">loading…</div>
       </div>
-    </SimProvider>
+    </div>
   );
 }

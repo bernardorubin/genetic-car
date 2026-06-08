@@ -1,15 +1,17 @@
-import type { FloorMode, GravityKey } from '../state/types';
-import { useSim } from '../state/useSim';
-import { ActionButton, SectionHeading, Select, Slider, Toggle } from './controls';
-import { FitnessGraph } from './FitnessGraph';
-import { HallOfFame } from './HallOfFame';
-import { AchievementsList } from './AchievementsList';
-import { TrackPicker } from './TrackPicker';
-import { FavoritePicker } from './FavoritePicker';
-import { ShareBar } from './ShareBar';
+import { useSim3d } from '../state3d/useSim3d';
+import type { GravityKey } from '../state3d/types3d';
+import {
+  ActionButton,
+  SectionHeading,
+  Select,
+  Slider,
+  Toggle,
+} from '../ui/controls';
+import { FitnessGraphCanvas } from '../ui/FitnessGraphCanvas';
 
-export function Sidebar() {
-  const { settings, stats, setSetting, newPopulation, regenWorld, save, restore, toggleReplay } = useSim();
+export function Sidebar3D() {
+  const { settings, stats, setSetting, newPopulation, regenWorld, save, restore, toggleReplay } =
+    useSim3d();
 
   return (
     <div className="p-5 flex flex-col gap-6">
@@ -49,31 +51,21 @@ export function Sidebar() {
           label="evolve wheel power"
           value={settings.varyTorque}
           onToggle={() => setSetting('varyTorque', !settings.varyTorque)}
-          description="each wheel evolves its own motor torque · off = uniform power for all"
+          description="each axle evolves its own motor torque · off = uniform power for all"
         />
         <Select<string>
           label="max gen length"
           value={settings.maxGenSeconds === null ? 'none' : String(settings.maxGenSeconds)}
-          onChange={(v) =>
-            setSetting('maxGenSeconds', v === 'none' ? null : Number(v))
-          }
+          onChange={(v) => setSetting('maxGenSeconds', v === 'none' ? null : Number(v))}
           options={[
-            ['30', '30 seconds'],
-            ['60', '1 minute'],
-            ['120', '2 minutes'],
-            ['300', '5 minutes'],
+            ['15', '15 seconds'],
+            ['25', '25 seconds'],
+            ['45', '45 seconds'],
+            ['90', '90 seconds'],
             ['none', 'no limit'],
           ]}
-          description="hard time cap per generation · stall detector still ends idle gens"
+          description="hard time cap per generation · keeps evolution moving"
         />
-      </section>
-
-      <section>
-        <SectionHeading>track</SectionHeading>
-        <TrackPicker />
-        <p className="mt-2 text-[10px] font-mono text-ink-500 leading-relaxed">
-          presets bulk-set gravity, terrain, and obstacles. tweak below to enter "custom".
-        </p>
       </section>
 
       <section>
@@ -90,16 +82,6 @@ export function Sidebar() {
           ]}
           description="downward pull · affects climbing grip and air time"
         />
-        <Select<FloorMode>
-          label="floor"
-          value={settings.floor}
-          onChange={(v) => setSetting('floor', v)}
-          options={[
-            ['fixed', 'fixed terrain'],
-            ['mutable', 'mutates per gen'],
-          ]}
-          description="fixed = same track every gen · mutates = fresh track each gen"
-        />
         <Slider
           label="roughness"
           value={settings.roughness}
@@ -108,7 +90,7 @@ export function Sidebar() {
           step={0.01}
           format={(v) => `${(v * 100).toFixed(0)}%`}
           onChange={(v) => setSetting('roughness', v)}
-          description="how jagged the slope is step-to-step"
+          description="how jagged the forward hills are"
         />
         <Slider
           label="max slope"
@@ -118,20 +100,8 @@ export function Sidebar() {
           step={0.01}
           format={(v) => `${(v * 100).toFixed(0)}%`}
           onChange={(v) => setSetting('maxSlope', v)}
-          description="ceiling on per-step steepness · lower = flatter"
+          description="ceiling on hill steepness · lower = flatter"
         />
-        <Slider
-          label="obstacles"
-          value={settings.obstacleDensity}
-          min={0}
-          max={0.3}
-          step={0.005}
-          format={(v) => `${(v * 100).toFixed(1)}%`}
-          onChange={(v) => setSetting('obstacleDensity', v)}
-        />
-        <p className="-mt-1 mb-3 text-[10px] font-mono text-ink-500">
-          spike pits + ramps sprinkled past 60m
-        </p>
         <div className="mt-3">
           <label className="block text-[10px] font-mono uppercase tracking-[0.18em] text-ink-500 mb-1.5">
             world seed
@@ -153,7 +123,6 @@ export function Sidebar() {
           <p className="mt-1.5 text-[10px] font-mono text-ink-500">
             same seed · same terrain · same evolution
           </p>
-          <ShareBar />
         </div>
       </section>
 
@@ -161,11 +130,7 @@ export function Sidebar() {
         <SectionHeading>population</SectionHeading>
         <div className="grid grid-cols-2 gap-2">
           <ActionButton onClick={newPopulation}>new pop</ActionButton>
-          <ActionButton
-            onClick={toggleReplay}
-            disabled={!stats.hasBestGenome}
-            highlight={stats.replay}
-          >
+          <ActionButton onClick={toggleReplay} disabled={!stats.hasBestGenome} highlight={stats.replay}>
             {stats.replay ? 'exit replay' : 'view top'}
           </ActionButton>
           <ActionButton onClick={save}>save</ActionButton>
@@ -188,30 +153,14 @@ export function Sidebar() {
           onToggle={() => setSetting('render', !settings.render)}
           offLabel="off · fast"
           inactiveColor="text-amber-400"
-          description="turn off to let the population race in the background at higher speed"
+          description="turn off to let the population evolve in the background at higher speed"
         />
       </section>
 
       <section>
         <SectionHeading>fitness · last 100 gens</SectionHeading>
-        <FitnessGraph />
-      </section>
-
-      <section>
-        <SectionHeading>favorite · breeding boost</SectionHeading>
-        <FavoritePicker />
-      </section>
-
-      <section>
-        <SectionHeading>hall of fame</SectionHeading>
-        <HallOfFame />
-      </section>
-
-      <section>
-        <SectionHeading>achievements</SectionHeading>
-        <AchievementsList />
+        <FitnessGraphCanvas history={stats.history} />
       </section>
     </div>
   );
 }
-

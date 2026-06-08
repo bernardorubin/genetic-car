@@ -18,6 +18,12 @@ import {
 } from '../sim/storage';
 import { checkUnlocks, getUnlocked } from '../sim/achievements';
 import {
+  UNLOCK_EVENT,
+  isUnlocked3d,
+  markUnlocked3d,
+  shouldUnlock3d,
+} from '../sim/unlock3d';
+import {
   loadHallOfFame,
   submitToHall,
   type HallOfFameEntry,
@@ -104,6 +110,8 @@ export function SimProvider({ children }: { children: ReactNode }) {
   const [hallOfFame, setHallOfFame] = useState<HallOfFameEntry[]>(() => loadHallOfFame());
   const [recordCelebrations, setRecordCelebrations] = useState<{ key: number; score: number }[]>([]);
   const recordKeyRef = useRef(0);
+  // Tracks whether the 3D lab has been unlocked, so we only fire the event once.
+  const unlocked3dRef = useRef(isUnlocked3d());
   const [topLive, setTopLive] = useState<SimContextValue['topLive']>([]);
   const [hasFavorite, setHasFavorite] = useState(false);
 
@@ -217,6 +225,13 @@ export function SimProvider({ children }: { children: ReactNode }) {
               const key = ++recordKeyRef.current;
               const scoreAtRecord = topScoreCache;
               setRecordCelebrations((prev) => [...prev, { key, score: scoreAtRecord }]);
+            }
+
+            // Unlock the 3D lab the first time this run hits gen 20 or 500m.
+            if (!unlocked3dRef.current && shouldUnlock3d(pop.generation, pop.bestScore)) {
+              unlocked3dRef.current = true;
+              markUnlocked3d();
+              window.dispatchEvent(new CustomEvent(UNLOCK_EVENT));
             }
 
             // Submit to the Hall of Fame if this beats any existing entry.
