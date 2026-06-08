@@ -8,11 +8,12 @@ import { useSim3d } from '../state3d/useSim3d';
 const POOL_CARS = 16;
 const POOL_WHEELS = MAX_AXLES * 2;
 
-const COLOR_LEADER = 0xfbbf24;
-const COLOR_ALIVE = 0x7dd3fc;
+const COLOR_LEADER = 0xfbbf24; // leader cue is an emissive glow, not a body recolor
+const COLOR_ALIVE = 0x7dd3fc; // JSX initial only — per-car hue is applied each frame
 const COLOR_DEAD = 0x3a4256;
 const COLOR_WHEEL = 0xa3e635;
 const COLOR_WHEEL_DEAD = 0x4a5168;
+const COLOR_STRUT = 0x6b7280;
 
 export function Scene3D() {
   return (
@@ -118,22 +119,40 @@ function Vehicles() {
 
   // Declarative mesh pool; refs (mutable by design) are mutated each frame.
   const chassisRefs = useRef<(THREE.Mesh | null)[]>([]);
+  const seg2Refs = useRef<(THREE.Mesh | null)[]>([]);
   const wheelRefs = useRef<(THREE.Mesh | null)[][]>([]);
+  const strutRefs = useRef<(THREE.Mesh | null)[][]>([]);
 
   // Shared geometries (cylinder axis is Y; we re-aim it to Z per-frame via baseQuat).
   const chassisGeo = useMemo(() => new THREE.BoxGeometry(1, 1, 1), []);
   const wheelGeo = useMemo(() => new THREE.CylinderGeometry(1, 1, 1, 22), []);
+  const strutGeo = useMemo(() => new THREE.CylinderGeometry(1, 1, 1, 6), []);
+  const strutMat = useMemo(
+    () => new THREE.MeshStandardMaterial({ color: COLOR_STRUT, metalness: 0.4, roughness: 0.6 }),
+    [],
+  );
   const baseQuat = useMemo(
     () => new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2),
     [],
   );
+  // Per-frame scratch — reused so the hot loop never allocates.
   const spin = useMemo(() => new THREE.Quaternion(), []);
+  const cQuat = useMemo(() => new THREE.Quaternion(), []);
+  const cPos = useMemo(() => new THREE.Vector3(), []);
+  const off = useMemo(() => new THREE.Vector3(), []);
+  const top = useMemo(() => new THREE.Vector3(), []);
+  const bottom = useMemo(() => new THREE.Vector3(), []);
+  const mid = useMemo(() => new THREE.Vector3(), []);
+  const dir = useMemo(() => new THREE.Vector3(), []);
+  const UP_Y = useMemo(() => new THREE.Vector3(0, 1, 0), []);
   useEffect(() => {
     return () => {
       chassisGeo.dispose();
       wheelGeo.dispose();
+      strutGeo.dispose();
+      strutMat.dispose();
     };
-  }, [chassisGeo, wheelGeo]);
+  }, [chassisGeo, wheelGeo, strutGeo, strutMat]);
 
   useFrame(() => {
     const pop = getPopulation();
@@ -143,42 +162,92 @@ function Vehicles() {
     for (let i = 0; i < POOL_CARS; i++) {
       const car = cars[i];
       const cMesh = chassisRefs.current[i];
+      const podMesh = seg2Refs.current[i];
       const ws = wheelRefs.current[i] ?? [];
+      const sts = strutRefs.current[i] ?? [];
       if (!cMesh) continue;
       if (!car) {
         cMesh.visible = false;
+        if (podMesh) podMesh.visible = false;
         for (const wm of ws) if (wm) wm.visible = false;
+        for (const sm of sts) if (sm) sm.visible = false;
         continue;
       }
       const ct = car.chassis.translation();
       const cr = car.chassis.rotation();
+      cPos.set(ct.x, ct.y, ct.z);
+      cQuat.set(cr.x, cr.y, cr.z, cr.w);
+      const opacity = car.alive ? 0.95 : 0.4;
+      const bodyColor = car.alive ? car.colorHex : COLOR_DEAD;
+
       cMesh.visible = true;
-      cMesh.position.set(ct.x, ct.y, ct.z);
-      cMesh.quaternion.set(cr.x, cr.y, cr.z, cr.w);
+      cMesh.position.copy(cPos);
+      cMesh.quaternion.copy(cQuat);
       cMesh.scale.set(car.halfL * 2, car.halfH * 2, car.halfW * 2);
       const cmat = cMesh.material as THREE.MeshStandardMaterial;
-      cmat.color.setHex(!car.alive ? COLOR_DEAD : car === leader ? COLOR_LEADER : COLOR_ALIVE);
-      cmat.opacity = car.alive ? 0.92 : 0.4;
+      cmat.color.setHex(bodyColor);
+      // Leader cue is an emissive glow so each car keeps its identity color.
+      cmat.emissive.setHex(car === leader ? COLOR_LEADER : 0x000000);
+      cmat.emissiveIntensity = car === leader ? 0.35 : 0;
+      cmat.opacity = opacity;
+
+      // Optional welded pod — placed by composing the chassis transform with the local offset.
+      if (podMesh) {
+        if (car.seg2) {
+          off.set(car.seg2.offX, car.seg2.offY, 0).applyQuaternion(cQuat).add(cPos);
+          podMesh.visible = true;
+          podMesh.position.copy(off);
+          podMesh.quaternion.copy(cQuat);
+          podMesh.scale.set(car.seg2.halfL * 2, car.seg2.halfH * 2, car.seg2.halfW * 2);
+          const pmat = podMesh.material as THREE.MeshStandardMaterial;
+          pmat.color.setHex(bodyColor);
+          pmat.opacity = opacity;
+        } else {
+          podMesh.visible = false;
+        }
+      }
 
       for (let w = 0; w < POOL_WHEELS; w++) {
         const wm = ws[w];
-        if (!wm) continue;
+        const sm = sts[w];
         const wheel = car.wheels[w];
         if (!wheel) {
-          wm.visible = false;
+          if (wm) wm.visible = false;
+          if (sm) sm.visible = false;
           continue;
         }
         const wt = wheel.body.translation();
         const wr = wheel.body.rotation();
-        wm.visible = true;
-        wm.position.set(wt.x, wt.y, wt.z);
-        spin.set(wr.x, wr.y, wr.z, wr.w);
-        wm.quaternion.copy(spin).multiply(baseQuat); // aim cylinder along Z, then spin
-        // geometry-local axes (Y-up cylinder): radius on X/Z, width on Y
-        wm.scale.set(wheel.radius, wheel.width, wheel.radius);
-        (wm.material as THREE.MeshStandardMaterial).color.setHex(
-          car.alive ? COLOR_WHEEL : COLOR_WHEEL_DEAD,
-        );
+        if (wm) {
+          wm.visible = true;
+          wm.position.set(wt.x, wt.y, wt.z);
+          spin.set(wr.x, wr.y, wr.z, wr.w);
+          wm.quaternion.copy(spin).multiply(baseQuat); // aim cylinder along Z, then spin
+          // geometry-local axes (Y-up cylinder): radius on X/Z, width on Y
+          wm.scale.set(wheel.radius, wheel.width, wheel.radius);
+          (wm.material as THREE.MeshStandardMaterial).color.setHex(
+            car.alive ? COLOR_WHEEL : COLOR_WHEEL_DEAD,
+          );
+        }
+        // Strut (leg) — a thin cylinder from the chassis-local mount down to the wheel.
+        if (sm) {
+          if (wheel.strut > 0.02 && car.alive) {
+            top.set(wheel.anchorX, wheel.anchorY, wheel.anchorZ).applyQuaternion(cQuat).add(cPos);
+            bottom.set(wt.x, wt.y, wt.z);
+            dir.subVectors(bottom, top);
+            const len = dir.length();
+            mid.addVectors(top, bottom).multiplyScalar(0.5);
+            sm.visible = true;
+            sm.position.copy(mid);
+            if (len > 1e-4) {
+              dir.multiplyScalar(1 / len);
+              sm.quaternion.setFromUnitVectors(UP_Y, dir);
+            }
+            sm.scale.set(0.05, len, 0.05);
+          } else {
+            sm.visible = false;
+          }
+        }
       }
     }
   });
@@ -203,18 +272,44 @@ function Vehicles() {
               opacity={0.92}
             />
           </mesh>
+          <mesh
+            ref={(m) => {
+              seg2Refs.current[i] = m;
+            }}
+            geometry={chassisGeo}
+            castShadow
+            visible={false}
+          >
+            <meshStandardMaterial
+              color={COLOR_ALIVE}
+              metalness={0.2}
+              roughness={0.5}
+              transparent
+              opacity={0.92}
+            />
+          </mesh>
           {WHEEL_INDICES.map((w) => (
-            <mesh
-              key={w}
-              ref={(m) => {
-                (wheelRefs.current[i] ??= [])[w] = m;
-              }}
-              geometry={wheelGeo}
-              castShadow
-              visible={false}
-            >
-              <meshStandardMaterial color={COLOR_WHEEL} metalness={0.3} roughness={0.6} />
-            </mesh>
+            <group key={w}>
+              <mesh
+                ref={(m) => {
+                  (wheelRefs.current[i] ??= [])[w] = m;
+                }}
+                geometry={wheelGeo}
+                castShadow
+                visible={false}
+              >
+                <meshStandardMaterial color={COLOR_WHEEL} metalness={0.3} roughness={0.6} />
+              </mesh>
+              <mesh
+                ref={(m) => {
+                  (strutRefs.current[i] ??= [])[w] = m;
+                }}
+                geometry={strutGeo}
+                material={strutMat}
+                castShadow
+                visible={false}
+              />
+            </group>
           ))}
         </group>
       ))}

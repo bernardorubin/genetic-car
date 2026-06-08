@@ -8,6 +8,7 @@ import {
   Toggle,
 } from '../ui/controls';
 import { FitnessGraphCanvas } from '../ui/FitnessGraphCanvas';
+import { WorldPreset3D } from './WorldPreset3D';
 
 export function Sidebar3D() {
   const { settings, stats, setSetting, newPopulation, regenWorld, save, restore, toggleReplay } =
@@ -69,6 +70,41 @@ export function Sidebar3D() {
       </section>
 
       <section>
+        <SectionHeading>morphology</SectionHeading>
+        <Slider
+          label="body variety"
+          value={settings.bodyVariety}
+          min={0}
+          max={1}
+          step={0.01}
+          format={(v) => `${(v * 100).toFixed(0)}%`}
+          onChange={(v) => setSetting('bodyVariety', v)}
+          description="0 = uniform boxes · 1 = wild silhouettes, pods, tall rovers"
+        />
+        <Slider
+          label="wheel-size spread"
+          value={settings.wheelSizeSpread}
+          min={0}
+          max={1}
+          step={0.01}
+          format={(v) => `${(v * 100).toFixed(0)}%`}
+          onChange={(v) => setSetting('wheelSizeSpread', v)}
+          description="how much wheel radius can differ across one car's axles"
+        />
+        <p className="mt-1 text-[10px] font-mono text-ink-500 leading-relaxed">
+          changes the cars in place — your population keeps evolving.
+        </p>
+      </section>
+
+      <section>
+        <SectionHeading>world type</SectionHeading>
+        <WorldPreset3D />
+        <p className="mt-2 text-[10px] font-mono text-ink-500 leading-relaxed">
+          presets set gravity, terrain, and lane width. tweak below to enter "custom".
+        </p>
+      </section>
+
+      <section>
         <SectionHeading>world</SectionHeading>
         <Select<GravityKey>
           label="gravity"
@@ -101,6 +137,16 @@ export function Sidebar3D() {
           format={(v) => `${(v * 100).toFixed(0)}%`}
           onChange={(v) => setSetting('maxSlope', v)}
           description="ceiling on hill steepness · lower = flatter"
+        />
+        <Slider
+          label="track width"
+          value={settings.trackWidth}
+          min={8}
+          max={24}
+          step={0.5}
+          format={(v) => `${v.toFixed(1)} m`}
+          onChange={(v) => setSetting('trackWidth', v)}
+          description="channel width · berms bank the outer edges to keep cars in the lane"
         />
         <div className="mt-3">
           <label className="block text-[10px] font-mono uppercase tracking-[0.18em] text-ink-500 mb-1.5">

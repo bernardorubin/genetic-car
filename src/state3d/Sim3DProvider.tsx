@@ -45,6 +45,9 @@ function bootstrapSettings(): { settings: Sim3DSettings; hydrate: ReturnType<typ
         maxSlope: auto.maxSlope,
         maxGenSeconds: auto.maxGenSeconds,
         varyTorque: auto.varyTorque,
+        bodyVariety: auto.bodyVariety,
+        wheelSizeSpread: auto.wheelSizeSpread,
+        trackWidth: auto.trackWidth,
       },
       hydrate: auto,
     };
@@ -95,6 +98,9 @@ export function Sim3DProvider({ children }: { children: ReactNode }) {
       maxSlope: settings.maxSlope,
       maxGenSeconds: cur.maxGenSeconds,
       varyTorque: cur.varyTorque,
+      bodyVariety: cur.bodyVariety,
+      wheelSizeSpread: cur.wheelSizeSpread,
+      trackWidth: cur.trackWidth,
       ga: {
         mutationRate: cur.mutationRate,
         mutationSize: cur.mutationSize,
@@ -142,6 +148,20 @@ export function Sim3DProvider({ children }: { children: ReactNode }) {
     }
     populationRef.current?.applyVaryTorque(settings.varyTorque);
   }, [settings.varyTorque]);
+
+  // Morphology / track-width — applied in place (population kept), like varyTorque.
+  const carOptsMountedRef = useRef(false);
+  useEffect(() => {
+    if (!carOptsMountedRef.current) {
+      carOptsMountedRef.current = true;
+      return;
+    }
+    populationRef.current?.applyCarOpts({
+      bodyVariety: settings.bodyVariety,
+      wheelSizeSpread: settings.wheelSizeSpread,
+      trackWidth: settings.trackWidth,
+    });
+  }, [settings.bodyVariety, settings.wheelSizeSpread, settings.trackWidth]);
 
   // Sim loop — steps whether or not the scene renders, so fast mode evolves headlessly.
   useEffect(() => {

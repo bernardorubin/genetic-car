@@ -54,12 +54,20 @@ function crossover(rng: Rng, a: Genome3D, b: Genome3D): Genome3D {
   if (rng() < 0.5) child.chassisHalfW = b.chassisHalfW;
   if (rng() < 0.5) child.chassisDensity = b.chassisDensity;
   if (rng() < 0.5) child.trackExtra = b.trackExtra;
+  if (rng() < 0.5) child.seg2Present = b.seg2Present;
+  if (rng() < 0.5) child.seg2HalfL = b.seg2HalfL;
+  if (rng() < 0.5) child.seg2HalfH = b.seg2HalfH;
+  if (rng() < 0.5) child.seg2HalfW = b.seg2HalfW;
+  if (rng() < 0.5) child.seg2OffX = b.seg2OffX;
+  if (rng() < 0.5) child.seg2OffY = b.seg2OffY;
+  if (rng() < 0.5) child.hue = b.hue;
   for (let i = 0; i < MAX_AXLES; i++) {
     if (rng() < 0.5) child.axleActive[i] = b.axleActive[i];
     if (rng() < 0.5) child.axlePos[i] = b.axlePos[i];
     if (rng() < 0.5) child.wheelRadius[i] = b.wheelRadius[i];
     if (rng() < 0.5) child.wheelWidth[i] = b.wheelWidth[i];
     if (rng() < 0.5) child.motorTorque[i] = b.motorTorque[i];
+    if (rng() < 0.5) child.strutLen[i] = b.strutLen[i];
   }
   ensureValid3d(child);
   return child;
@@ -80,6 +88,13 @@ function mutateGenome(rng: Rng, g: Genome3D, params: GA3DParams): Genome3D {
   if (rng() < mutationRate)
     out.chassisDensity = mutateGene01(rng, out.chassisDensity, mutationSize);
   if (rng() < mutationRate) out.trackExtra = mutateGene01(rng, out.trackExtra, mutationSize);
+  if (rng() < mutationRate) out.seg2Present = mutateGene01(rng, out.seg2Present, mutationSize);
+  if (rng() < mutationRate) out.seg2HalfL = mutateGene01(rng, out.seg2HalfL, mutationSize);
+  if (rng() < mutationRate) out.seg2HalfH = mutateGene01(rng, out.seg2HalfH, mutationSize);
+  if (rng() < mutationRate) out.seg2HalfW = mutateGene01(rng, out.seg2HalfW, mutationSize);
+  if (rng() < mutationRate) out.seg2OffX = mutateGene01(rng, out.seg2OffX, mutationSize);
+  if (rng() < mutationRate) out.seg2OffY = mutateGene01(rng, out.seg2OffY, mutationSize);
+  if (rng() < mutationRate) out.hue = mutateGene01(rng, out.hue, mutationSize);
   for (let i = 0; i < MAX_AXLES; i++) {
     if (rng() < mutationRate) out.axlePos[i] = mutateGene01(rng, out.axlePos[i], mutationSize);
     if (rng() < mutationRate)
@@ -88,6 +103,7 @@ function mutateGenome(rng: Rng, g: Genome3D, params: GA3DParams): Genome3D {
       out.wheelWidth[i] = mutateGene01(rng, out.wheelWidth[i], mutationSize);
     if (rng() < mutationRate)
       out.motorTorque[i] = mutateGene01(rng, out.motorTorque[i], mutationSize);
+    if (rng() < mutationRate) out.strutLen[i] = mutateGene01(rng, out.strutLen[i], mutationSize);
     // Axle-flip uses a softened rate — adding/removing an axle is a high-impact change.
     if (rng() < mutationRate * 0.5) out.axleActive[i] = out.axleActive[i] ? 0 : 1;
   }

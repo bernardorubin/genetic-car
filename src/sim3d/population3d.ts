@@ -1,5 +1,6 @@
 import seedrandom from 'seedrandom';
 import { SimWorld3D } from './world3d';
+import type { BuildCarOpts } from './car3d';
 import {
   nextGeneration3d,
   randomPopulation3d,
@@ -17,6 +18,12 @@ export interface Population3DOptions {
   maxSlope: number;
   maxGenSeconds: number | null;
   varyTorque: boolean;
+  /** 0..1 — how dramatic car morphology can get */
+  bodyVariety: number;
+  /** 0..1 — cross-axle wheel-radius spread */
+  wheelSizeSpread: number;
+  /** full lateral channel width in meters */
+  trackWidth: number;
   ga: GA3DParams;
 }
 
@@ -58,11 +65,23 @@ export class Population3D {
   }
 
   private terrainOpts() {
-    return { roughness: this.opts.roughness, maxSlope: this.opts.maxSlope };
+    return {
+      roughness: this.opts.roughness,
+      maxSlope: this.opts.maxSlope,
+      trackWidth: this.opts.trackWidth,
+    };
+  }
+
+  private carOpts(): BuildCarOpts {
+    return {
+      varyTorque: this.opts.varyTorque,
+      bodyVariety: this.opts.bodyVariety,
+      wheelSizeSpread: this.opts.wheelSizeSpread,
+    };
   }
 
   private makeSim(genomes: Genome3D[], rng: Rng = this.worldRng): SimWorld3D {
-    return new SimWorld3D(rng, this.opts.gravity, this.terrainOpts(), genomes, this.opts.varyTorque);
+    return new SimWorld3D(rng, this.opts.gravity, this.terrainOpts(), genomes, this.carOpts());
   }
 
   /** Free the outgoing world's WASM memory, then swap in the next one. */
@@ -144,6 +163,34 @@ export class Population3D {
     this.swapSim(this.makeSim(this.genomes, seedrandom(this.terrainSeed)));
   }
 
+  /** Apply morphology / track-width settings in place — rebuilds the sim (terrain + cars)
+   * with the SAME genomes, like applyVaryTorque, so dragging these sliders doesn't wipe
+   * the running population. */
+  applyCarOpts(partial: {
+    bodyVariety?: number;
+    wheelSizeSpread?: number;
+    trackWidth?: number;
+  }): void {
+    let changed = false;
+    if (partial.bodyVariety !== undefined && partial.bodyVariety !== this.opts.bodyVariety) {
+      this.opts.bodyVariety = partial.bodyVariety;
+      changed = true;
+    }
+    if (
+      partial.wheelSizeSpread !== undefined &&
+      partial.wheelSizeSpread !== this.opts.wheelSizeSpread
+    ) {
+      this.opts.wheelSizeSpread = partial.wheelSizeSpread;
+      changed = true;
+    }
+    if (partial.trackWidth !== undefined && partial.trackWidth !== this.opts.trackWidth) {
+      this.opts.trackWidth = partial.trackWidth;
+      changed = true;
+    }
+    if (!changed || this.replayMode) return;
+    this.swapSim(this.makeSim(this.genomes, seedrandom(this.terrainSeed)));
+  }
+
   resetPopulation(): void {
     this.gaRng = seedrandom(this.opts.seed + ':ga:' + this.generation + ':' + this.bestScore);
     this.genomes = randomPopulation3d(this.gaRng, this.opts.size);
@@ -201,6 +248,9 @@ export class Population3D {
       maxSlope: this.opts.maxSlope,
       maxGenSeconds: this.opts.maxGenSeconds,
       varyTorque: this.opts.varyTorque,
+      bodyVariety: this.opts.bodyVariety,
+      wheelSizeSpread: this.opts.wheelSizeSpread,
+      trackWidth: this.opts.trackWidth,
       bestScore: this.bestScore,
       bestGenome: this.bestGenome ? cloneGenome3d(this.bestGenome) : null,
       genomes: this.genomes.map(cloneGenome3d),

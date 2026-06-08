@@ -6,10 +6,11 @@ import {
   type Terrain3D,
   type Terrain3DOptions,
 } from './terrain3d';
-import { TERRAIN_GROUPS, buildCar3d, type Car3D } from './car3d';
+import { TERRAIN_GROUPS, buildCar3d, type BuildCarOpts, type Car3D } from './car3d';
 import {
   MAX_AXLES,
   decodeHalfH,
+  decodeStrutLen,
   decodeWheelRadius3d,
   randomGenome3d,
   type Genome3D,
@@ -22,6 +23,9 @@ const STALL_MIN_GAIN = 0.05; // meters
 const SPAWN_X = 6;
 const SPAWN_DROP = 0.4; // gap above the ground at spawn
 const BLOWUP_LIMIT = 100000;
+// Hard lateral backstop beyond the banked edges — if a car somehow vaults a berm,
+// kill it so it doesn't drift off forever and skew the camera/stats.
+const Z_KILL_MARGIN = 3; // meters past the mesh edge
 
 export interface CameraTarget {
   x: number;
@@ -43,8 +47,8 @@ export class SimWorld3D {
     rng: Rng,
     gravity: number,
     terrainOpts: Terrain3DOptions,
-    genomes?: Genome3D[],
-    varyTorque = true,
+    genomes: Genome3D[] | undefined,
+    carOpts: BuildCarOpts,
   ) {
     this.world = new RAPIER.World({ x: 0, y: -gravity, z: 0 });
     this.world.timestep = STEP_DT;
@@ -53,14 +57,22 @@ export class SimWorld3D {
 
     const seeds = genomes ?? [randomGenome3d(rng)];
     const groundH = sampleHeight3d(this.terrain, SPAWN_X);
+    const variety = carOpts.bodyVariety;
     for (const g of seeds) {
-      const halfH = decodeHalfH(g.chassisHalfH);
+      const halfH = decodeHalfH(g.chassisHalfH, variety);
+      // Account for the tallest wheel + its leg so tall/legged cars spawn clear of the ground.
       let maxR = 0;
+      let maxStrut = 0;
       for (let i = 0; i < MAX_AXLES; i++) {
-        if (g.axleActive[i]) maxR = Math.max(maxR, decodeWheelRadius3d(g.wheelRadius[i]));
+        if (!g.axleActive[i]) continue;
+        maxR = Math.max(
+          maxR,
+          decodeWheelRadius3d(g.wheelRadius[i], variety, carOpts.wheelSizeSpread, g.wheelRadius[0]),
+        );
+        maxStrut = Math.max(maxStrut, decodeStrutLen(g.strutLen[i], variety));
       }
-      const spawnY = groundH + halfH + maxR + SPAWN_DROP;
-      this.cars.push(buildCar3d(this.world, g, SPAWN_X, spawnY, varyTorque));
+      const spawnY = groundH + halfH + maxStrut + maxR + SPAWN_DROP;
+      this.cars.push(buildCar3d(this.world, g, SPAWN_X, spawnY, carOpts));
     }
     if (this.cars.length > 0) {
       const p = this.cars[0].chassis.translation();
@@ -89,7 +101,13 @@ export class SimWorld3D {
       const p = car.chassis.translation();
       // Blow-up guard: non-finite or absurd position → kill (don't poison stats).
       if (!Number.isFinite(p.x) || Math.abs(p.x) > BLOWUP_LIMIT || !Number.isFinite(p.y)) {
-        car.alive = false;
+        this.killCar(car);
+        continue;
+      }
+      // Lateral backstop: berms are primary containment, but kill any car that escapes
+      // sideways past the track edge so it can't drift off into the void.
+      if (Math.abs(p.z) > this.terrain.trackWidth / 2 + Z_KILL_MARGIN) {
+        this.killCar(car);
         continue;
       }
       if (p.x > car.maxX + STALL_MIN_GAIN) {
@@ -97,7 +115,7 @@ export class SimWorld3D {
         car.stallTicks = 0;
       } else {
         car.stallTicks++;
-        if (car.stallTicks > STALL_TICK_LIMIT) car.alive = false;
+        if (car.stallTicks > STALL_TICK_LIMIT) this.killCar(car);
       }
     }
     const leader = this.leader();
@@ -107,6 +125,16 @@ export class SimWorld3D {
       this.camera.y += (p.y - this.camera.y) * 0.08;
       this.camera.z += (p.z - this.camera.z) * 0.08;
     }
+  }
+
+  /** Kill a car and freeze its bodies in place. Without freezing, a car that ramps off
+   * a berm keeps flying under physics after death (a dim body streaking through the sky);
+   * pinning it to Fixed leaves it resting where it died. Cars never collide with each
+   * other, so a frozen body can't block the living. */
+  private killCar(car: Car3D): void {
+    car.alive = false;
+    car.chassis.setBodyType(RAPIER.RigidBodyType.Fixed, false);
+    for (const w of car.wheels) w.body.setBodyType(RAPIER.RigidBodyType.Fixed, false);
   }
 
   leader(): Car3D | null {

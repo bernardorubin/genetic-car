@@ -19,6 +19,12 @@ export interface Sim3DSettings {
   maxGenSeconds: number | null;
   /** when true, each axle evolves its own motor torque */
   varyTorque: boolean;
+  /** 0..1 — how dramatic car morphology can get (0 = uniform boxes, 1 = wild) */
+  bodyVariety: number;
+  /** 0..1 — how much wheel radius can differ across one car's axles */
+  wheelSizeSpread: number;
+  /** full lateral channel width in meters (berms bank the outer edges) */
+  trackWidth: number;
   seed: string;
   render: boolean;
 }
@@ -50,6 +56,10 @@ export const DEFAULT_SETTINGS_3D: Sim3DSettings = {
   // gentle 3D hills could otherwise roll a long time before stalling).
   maxGenSeconds: 25,
   varyTorque: true,
+  // Mid-high so the morphology upgrade is visible out of the box.
+  bodyVariety: 0.6,
+  wheelSizeSpread: 0.3,
+  trackWidth: 14,
   seed: '',
   render: true,
 };

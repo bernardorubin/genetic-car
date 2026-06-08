@@ -1,8 +1,10 @@
 import type { Genome3D } from './genome3d';
 
 // 3D save slots — separate namespace from the 2D lab so the two never collide.
-const KEY = 'genetic-cars-3d:saved-pop:v1';
-const AUTO_KEY = 'genetic-cars-3d:autosave:v1';
+// v2: genome gained struts / second-segment / hue genes + world morphology settings;
+// old v1 saves are silently dropped (same convention as the 2D sim's key bumps).
+const KEY = 'genetic-cars-3d:saved-pop:v2';
+const AUTO_KEY = 'genetic-cars-3d:autosave:v2';
 const TOP_KEY = 'genetic-cars-3d:top-score:v1';
 
 interface SerializedGenome3D {
@@ -16,6 +18,14 @@ interface SerializedGenome3D {
   wheelRadius: number[];
   wheelWidth: number[];
   motorTorque: number[];
+  strutLen: number[];
+  seg2Present: number;
+  seg2HalfL: number;
+  seg2HalfH: number;
+  seg2HalfW: number;
+  seg2OffX: number;
+  seg2OffY: number;
+  hue: number;
 }
 
 interface SavedSnapshot3D {
@@ -28,6 +38,9 @@ interface SavedSnapshot3D {
   maxSlope: number;
   maxGenSeconds: number | null;
   varyTorque: boolean;
+  bodyVariety: number;
+  wheelSizeSpread: number;
+  trackWidth: number;
   bestScore: number;
   bestGenome: SerializedGenome3D | null;
   genomes: SerializedGenome3D[];
@@ -46,6 +59,14 @@ function toSerialized(g: Genome3D): SerializedGenome3D {
     wheelRadius: Array.from(g.wheelRadius),
     wheelWidth: Array.from(g.wheelWidth),
     motorTorque: Array.from(g.motorTorque),
+    strutLen: Array.from(g.strutLen),
+    seg2Present: g.seg2Present,
+    seg2HalfL: g.seg2HalfL,
+    seg2HalfH: g.seg2HalfH,
+    seg2HalfW: g.seg2HalfW,
+    seg2OffX: g.seg2OffX,
+    seg2OffY: g.seg2OffY,
+    hue: g.hue,
   };
 }
 
@@ -61,6 +82,14 @@ function fromSerialized(s: SerializedGenome3D): Genome3D {
     wheelRadius: Float32Array.from(s.wheelRadius),
     wheelWidth: Float32Array.from(s.wheelWidth),
     motorTorque: Float32Array.from(s.motorTorque),
+    strutLen: Float32Array.from(s.strutLen),
+    seg2Present: s.seg2Present,
+    seg2HalfL: s.seg2HalfL,
+    seg2HalfH: s.seg2HalfH,
+    seg2HalfW: s.seg2HalfW,
+    seg2OffX: s.seg2OffX,
+    seg2OffY: s.seg2OffY,
+    hue: s.hue,
   };
 }
 
@@ -100,6 +129,9 @@ export interface RestoredPopulation3D {
   maxSlope: number;
   maxGenSeconds: number | null;
   varyTorque: boolean;
+  bodyVariety: number;
+  wheelSizeSpread: number;
+  trackWidth: number;
   bestScore: number;
   bestGenome: Genome3D | null;
   genomes: Genome3D[];
@@ -127,6 +159,9 @@ function readSnapshot(key: string): RestoredPopulation3D | null {
       maxSlope: parsed.maxSlope ?? 0.5,
       maxGenSeconds: parsed.maxGenSeconds === undefined ? null : parsed.maxGenSeconds,
       varyTorque: parsed.varyTorque ?? true,
+      bodyVariety: parsed.bodyVariety ?? 0.6,
+      wheelSizeSpread: parsed.wheelSizeSpread ?? 0.3,
+      trackWidth: parsed.trackWidth ?? 14,
       bestScore: parsed.bestScore ?? 0,
       bestGenome: parsed.bestGenome ? fromSerialized(parsed.bestGenome) : null,
       genomes: parsed.genomes.map(fromSerialized),
