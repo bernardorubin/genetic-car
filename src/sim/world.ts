@@ -25,13 +25,19 @@ export class SimWorld {
   /** wall-clock simulation ticks since reset */
   ticks = 0;
 
-  constructor(rng: Rng, gravity: number, terrainOpts: TerrainOptions, genomes?: Genome[]) {
+  constructor(
+    rng: Rng,
+    gravity: number,
+    terrainOpts: TerrainOptions,
+    genomes?: Genome[],
+    varyTorque = true,
+  ) {
     this.world = new PlanckWorld(new Vec2(0, -gravity));
     this.terrain = generateTerrain(rng, terrainOpts);
     this.buildTerrainBodies();
     const seeds = genomes ?? [randomGenome(rng)];
     for (const g of seeds) {
-      this.cars.push(buildCar(this.world, g, SPAWN_X, SPAWN_Y));
+      this.cars.push(buildCar(this.world, g, SPAWN_X, SPAWN_Y, varyTorque));
     }
     if (this.cars.length > 0) {
       this.camera.x = this.cars[0].chassis.getPosition().x;

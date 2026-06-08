@@ -27,7 +27,7 @@ src/
     world.ts               # SimWorld: planck.World lifecycle, step loop, follow camera
     ga.ts                  # tournament selection, uniform crossover, mutation, elitism
     population.ts          # Population: per-gen lifecycle, replay mode, snapshot/load
-    storage.ts             # localStorage save/restore (key versioned, v2 currently)
+    storage.ts             # localStorage save/restore (key versioned, v4 currently)
 
   render/
     canvas.ts              # draws a SimWorld snapshot to a Canvas2D context + TERRAIN_TIERS
@@ -70,7 +70,7 @@ Population rebuild triggers: changing **seed**, **gravity**, **floor**, **roughn
 
 ## Genome (working spec)
 
-37 genes per car, all normalized floats in [0, 1] unless noted. Each gene maps through a `decode*` helper in `genome.ts` into a physical value.
+41 genes per car, all normalized floats in [0, 1] unless noted. Each gene maps through a `decode*` helper in `genome.ts` into a physical value.
 
 | Gene group | Count | Stored as | Decoded range | Notes |
 |---|---|---|---|---|
@@ -82,9 +82,10 @@ Population rebuild triggers: changing **seed**, **gravity**, **floor**, **roughn
 | Wheel arm | 4 | `Float32Array` | **0m – 1m** | Visual-only strut length. If above `ARM_RENDER_MIN`, the wheel is held at a position offset from the chassis vertex along the outward normal. A line is drawn in the renderer; no physics body backs the arm. |
 | Wheel spring | 4 | `Float32Array` | 2 – 10 Hz | Reserved for future shock-absorber support — currently ignored (RevoluteJoint is rigid). See "Deferred" below. |
 | Wheel damping | 4 | `Float32Array` | 0.25 – 0.85 | Same as above. |
+| Wheel torque | 4 | `Float32Array` | **60 – 260 N·m** | Per-wheel motor torque. Only consulted when the `varyTorque` setting is on (default on); otherwise every wheel uses the uniform legacy constant (150). `decodeMotorTorque`; gene 0.45 = the legacy 150, used to backfill pre-v4 saves. |
 | Chassis density | 1 | `number` | 30 – 300 kg/m² | |
 
-Wheel motors run at a constant torque/speed (not evolved) so improvements come from morphology, not control.
+Wheel motor **speed** is a constant (`MOTOR_SPEED = -22`), never evolved. Wheel motor **torque** is evolvable per wheel via the `wheelTorque` gene, gated by the `varyTorque` toggle (default on). With the toggle off, every wheel runs the uniform legacy `MOTOR_TORQUE = 150` — so improvements come from morphology alone, the original design intent. Toggling it live rebuilds the current sim in place (`Population.applyVaryTorque`) without discarding the population, so it's a clean A/B on the same genomes.
 
 When the genome shape changes, bump the `KEY` version in `src/sim/storage.ts` — old saves are silently dropped.
 
@@ -125,6 +126,8 @@ Difficulty ramp by x (tightened in v3 — dials need to be visible at typical le
 
 Helper: `difficultyRamp(x)` in `src/sim/terrain.ts`. Generates ~1500 segments × 1.4m = ~2 km of track. If cars ever evolve to need more, extend `SEGMENTS_DEFAULT`.
 
+**Left apron**: cars spawn at x≈2 dropping from y=5, and a wide chassis or a leftward tip used to land vertices at x<0 (no ground → fell into the void). `generateTerrain` prepends a flat apron (`LEFT_RUNWAY` ≈ 16m at y=0) with a far-left vertical lip so the initial drop always has ground. It consumes no RNG, so determinism holds and the x≥0 track stays byte-identical — saved pops still resume on the same right-side terrain. Don't shorten the apron below the spawn margin.
+
 **Important**: if you make the ramp gentler (lower starting multiplier, longer easing zone), the user's dials become invisible at the distances they actually see. We learned this the hard way in v2 — the dials looked broken because 100% roughness at x=80m was being scaled to ~30%.
 
 `floor: 'fixed'` reuses the same terrain across generations. `floor: 'mutable'` re-seeds the terrain each generation (terrain seed becomes `<base>:terrain:<gen>`).
@@ -150,8 +153,8 @@ Default is no cap so leaders can run as far as they evolve to. The stall detecto
 
 | Key | Written when | Read when |
 |---|---|---|
-| `genetic-cars:saved-pop:v2` | User clicks "save" | User clicks "restore" |
-| `genetic-cars:autosave:v2` | Every generation completion (in the RAF loop) | First mount — hydrates the initial Population so a refresh resumes |
+| `genetic-cars:saved-pop:v4` | User clicks "save" | User clicks "restore" |
+| `genetic-cars:autosave:v4` | Every generation completion (in the RAF loop) | First mount — hydrates the initial Population so a refresh resumes |
 | `genetic-cars:top-score:v1` | Whenever `pop.bestScore` exceeds the stored value | On mount, and live during the sim (displayed as "all-time" in the HUD) |
 
 The autosave and manual-save keys are independent — manual save is a user-controlled checkpoint and never overwritten by autosave. Genome `Float32Array`/`Uint8Array` fields are serialized as `number[]` for JSON.

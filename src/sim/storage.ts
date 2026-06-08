@@ -1,11 +1,11 @@
-import type { Genome } from './genome';
+import { DEFAULT_TORQUE_GENE, MAX_WHEELS, type Genome } from './genome';
 
-// v3 schema adds wheelArm/wheelSpring/wheelDamping per wheel slot (legs + shocks).
-// Earlier saves are silently dropped — hasSavedPopulation() returns false until a v3 save exists.
-const KEY = 'genetic-cars:saved-pop:v3';
+// v4 schema adds per-wheel wheelTorque (evolvable motor power) + the varyTorque flag.
+// Earlier saves are silently dropped — hasSavedPopulation() returns false until a v4 save exists.
+const KEY = 'genetic-cars:saved-pop:v4';
 // Separate slot — written automatically after every generation so a refresh resumes.
 // Manual save uses KEY; auto-save uses AUTO_KEY. The two never overwrite each other.
-const AUTO_KEY = 'genetic-cars:autosave:v3';
+const AUTO_KEY = 'genetic-cars:autosave:v4';
 // All-time best distance. Never wiped by new-pop, restore, or seed changes.
 const TOP_KEY = 'genetic-cars:top-score:v1';
 
@@ -18,6 +18,7 @@ interface SerializedGenome {
   wheelArm: number[];
   wheelSpring: number[];
   wheelDamping: number[];
+  wheelTorque: number[];
   chassisDensity: number;
 }
 
@@ -31,6 +32,7 @@ interface SavedSnapshot {
   maxSlope: number;
   obstacleDensity: number;
   maxGenSeconds: number | null;
+  varyTorque: boolean;
   bestScore: number;
   bestGenome: SerializedGenome | null;
   genomes: SerializedGenome[];
@@ -47,6 +49,7 @@ function toSerialized(g: Genome): SerializedGenome {
     wheelArm: Array.from(g.wheelArm),
     wheelSpring: Array.from(g.wheelSpring),
     wheelDamping: Array.from(g.wheelDamping),
+    wheelTorque: Array.from(g.wheelTorque),
     chassisDensity: g.chassisDensity,
   };
 }
@@ -61,6 +64,10 @@ function fromSerialized(s: SerializedGenome): Genome {
     wheelArm: Float32Array.from(s.wheelArm),
     wheelSpring: Float32Array.from(s.wheelSpring),
     wheelDamping: Float32Array.from(s.wheelDamping),
+    // Backfill pre-v4 genomes that predate the torque gene with the legacy constant.
+    wheelTorque: Float32Array.from(
+      s.wheelTorque ?? new Array(MAX_WHEELS).fill(DEFAULT_TORQUE_GENE),
+    ),
     chassisDensity: s.chassisDensity,
   };
 }
@@ -101,6 +108,7 @@ export interface RestoredPopulation {
   maxSlope: number;
   obstacleDensity: number;
   maxGenSeconds: number | null;
+  varyTorque: boolean;
   bestScore: number;
   bestGenome: Genome | null;
   genomes: Genome[];
@@ -123,6 +131,7 @@ function readSnapshot(key: string): RestoredPopulation | null {
       maxSlope: parsed.maxSlope ?? 0.5,
       obstacleDensity: parsed.obstacleDensity ?? 0.06,
       maxGenSeconds: parsed.maxGenSeconds === undefined ? null : parsed.maxGenSeconds,
+      varyTorque: parsed.varyTorque ?? true,
       bestScore: parsed.bestScore ?? 0,
       bestGenome: parsed.bestGenome ? fromSerialized(parsed.bestGenome) : null,
       genomes: parsed.genomes.map(fromSerialized),

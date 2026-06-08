@@ -19,6 +19,8 @@ export interface PopulationOptions {
   obstacleDensity: number;
   /** seconds; null = never force-end a generation on time alone (stall still applies) */
   maxGenSeconds: number | null;
+  /** when true, each wheel's motor torque is evolved from the genome; otherwise uniform constant */
+  varyTorque: boolean;
   ga: GAParams;
 }
 
@@ -71,7 +73,7 @@ export class Population {
   }
 
   private makeSim(genomes: Genome[], rng: Rng = this.worldRng): SimWorld {
-    return new SimWorld(rng, this.opts.gravity, this.terrainOpts(), genomes);
+    return new SimWorld(rng, this.opts.gravity, this.terrainOpts(), genomes, this.opts.varyTorque);
   }
 
   /** Run a single simulation tick. Returns true when a new generation just started. */
@@ -145,6 +147,18 @@ export class Population {
     this.opts.ga = { ...this.opts.ga, ...params };
   }
 
+  /** Flip the torque-evolution rule live. Rebuilds the current sim in place so the
+   * change takes effect immediately, but keeps genomes / generation / history — the
+   * same population just re-runs the current generation under the new rule (a clean
+   * A/B rather than a reset). During replay we only stash the flag; exitReplay rebuilds
+   * with it (we don't retain the specific genome being replayed). */
+  applyVaryTorque(varyTorque: boolean): void {
+    if (this.opts.varyTorque === varyTorque) return;
+    this.opts.varyTorque = varyTorque;
+    if (this.replayMode) return;
+    this.sim = this.makeSim(this.genomes, seedrandom(this.terrainSeed));
+  }
+
   /** Wipe genomes, rebuild fresh population on the same terrain. */
   resetPopulation(): void {
     this.gaRng = seedrandom(this.opts.seed + ':ga:' + Date.now());
@@ -213,6 +227,7 @@ export class Population {
       maxSlope: this.opts.maxSlope,
       obstacleDensity: this.opts.obstacleDensity,
       maxGenSeconds: this.opts.maxGenSeconds,
+      varyTorque: this.opts.varyTorque,
       bestScore: this.bestScore,
       bestGenome: this.bestGenome ? cloneGenome(this.bestGenome) : null,
       genomes: this.genomes.map(cloneGenome),

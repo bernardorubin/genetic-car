@@ -22,6 +22,7 @@ export function Sidebar() {
           step={0.01}
           format={(v) => `${(v * 100).toFixed(0)}%`}
           onChange={(v) => setSetting('mutationRate', v)}
+          description="chance each gene changes in a child · higher = faster but noisier"
         />
         <Slider
           label="mutation size"
@@ -31,6 +32,7 @@ export function Sidebar() {
           step={0.01}
           format={(v) => `${(v * 100).toFixed(0)}%`}
           onChange={(v) => setSetting('mutationSize', v)}
+          description="how far a gene jumps when it mutates · small = fine-tune, large = bold leaps"
         />
         <Slider
           label="elite clones"
@@ -40,6 +42,13 @@ export function Sidebar() {
           step={1}
           format={(v) => `${v}`}
           onChange={(v) => setSetting('eliteCount', v)}
+          description="top N cars copied unchanged each gen · protects the best designs"
+        />
+        <Toggle
+          label="evolve wheel power"
+          value={settings.varyTorque}
+          onToggle={() => setSetting('varyTorque', !settings.varyTorque)}
+          description="each wheel evolves its own motor torque · off = uniform power for all"
         />
         <Select<string>
           label="max gen length"
@@ -54,10 +63,8 @@ export function Sidebar() {
             ['300', '5 minutes'],
             ['none', 'no limit'],
           ]}
+          description="hard time cap per generation · stall detector still ends idle gens"
         />
-        <p className="-mt-1 text-[10px] font-mono text-ink-500">
-          stall detector still ends idle gens
-        </p>
       </section>
 
       <section>
@@ -80,6 +87,7 @@ export function Sidebar() {
             ['earth', 'Earth ·  9.81'],
             ['jupiter', 'Jupiter · 24.79'],
           ]}
+          description="downward pull · affects climbing grip and air time"
         />
         <Select<FloorMode>
           label="floor"
@@ -89,6 +97,7 @@ export function Sidebar() {
             ['fixed', 'fixed terrain'],
             ['mutable', 'mutates per gen'],
           ]}
+          description="fixed = same track every gen · mutates = fresh track each gen"
         />
         <Slider
           label="roughness"
@@ -98,6 +107,7 @@ export function Sidebar() {
           step={0.01}
           format={(v) => `${(v * 100).toFixed(0)}%`}
           onChange={(v) => setSetting('roughness', v)}
+          description="how jagged the slope is step-to-step"
         />
         <Slider
           label="max slope"
@@ -107,6 +117,7 @@ export function Sidebar() {
           step={0.01}
           format={(v) => `${(v * 100).toFixed(0)}%`}
           onChange={(v) => setSetting('maxSlope', v)}
+          description="ceiling on per-step steepness · lower = flatter"
         />
         <Slider
           label="obstacles"
@@ -170,22 +181,14 @@ export function Sidebar() {
 
       <section>
         <SectionHeading>render</SectionHeading>
-        <button
-          onClick={() => setSetting('render', !settings.render)}
-          className="w-full flex items-center justify-between hairline rounded-md px-3 py-2 hover:bg-white/5 transition"
-        >
-          <span className="text-sm text-ink-100">draw simulation</span>
-          <span
-            className={`text-[10px] font-mono uppercase tracking-[0.18em] ${
-              settings.render ? 'text-accent-400' : 'text-amber-400'
-            }`}
-          >
-            {settings.render ? 'on' : 'off · fast'}
-          </span>
-        </button>
-        <p className="mt-2 text-[11px] text-ink-500 leading-relaxed">
-          turn off to let the population race in the background at higher speed.
-        </p>
+        <Toggle
+          label="draw simulation"
+          value={settings.render}
+          onToggle={() => setSetting('render', !settings.render)}
+          offLabel="off · fast"
+          inactiveColor="text-amber-400"
+          description="turn off to let the population race in the background at higher speed"
+        />
       </section>
 
       <section>
@@ -227,6 +230,7 @@ function Slider({
   step,
   format,
   onChange,
+  description,
 }: {
   label: string;
   value: number;
@@ -235,6 +239,7 @@ function Slider({
   step: number;
   format: (v: number) => string;
   onChange: (v: number) => void;
+  description?: string;
 }) {
   return (
     <div className="mb-3 last:mb-0">
@@ -251,6 +256,7 @@ function Slider({
         onChange={(e) => onChange(parseFloat(e.target.value))}
         className="w-full accent-accent-500"
       />
+      {description && <FieldHint>{description}</FieldHint>}
     </div>
   );
 }
@@ -260,11 +266,13 @@ function Select<T extends string>({
   value,
   options,
   onChange,
+  description,
 }: {
   label: string;
   value: T;
   options: [T, string][];
   onChange: (v: T) => void;
+  description?: string;
 }) {
   return (
     <div className="mb-3 last:mb-0">
@@ -282,6 +290,53 @@ function Select<T extends string>({
           </option>
         ))}
       </select>
+      {description && <FieldHint>{description}</FieldHint>}
+    </div>
+  );
+}
+
+/** Muted one-line helper text under a control. Matches the existing footnote style. */
+function FieldHint({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mt-1.5 text-[10px] font-mono text-ink-500 leading-relaxed">{children}</p>
+  );
+}
+
+function Toggle({
+  label,
+  value,
+  onToggle,
+  onLabel = 'on',
+  offLabel = 'off',
+  activeColor = 'text-accent-400',
+  inactiveColor = 'text-ink-500',
+  description,
+}: {
+  label: string;
+  value: boolean;
+  onToggle: () => void;
+  onLabel?: string;
+  offLabel?: string;
+  activeColor?: string;
+  inactiveColor?: string;
+  description?: string;
+}) {
+  return (
+    <div className="mb-3 last:mb-0">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between hairline rounded-md px-3 py-2 hover:bg-white/5 transition"
+      >
+        <span className="text-sm text-ink-100">{label}</span>
+        <span
+          className={`text-[10px] font-mono uppercase tracking-[0.18em] ${
+            value ? activeColor : inactiveColor
+          }`}
+        >
+          {value ? onLabel : offLabel}
+        </span>
+      </button>
+      {description && <FieldHint>{description}</FieldHint>}
     </div>
   );
 }

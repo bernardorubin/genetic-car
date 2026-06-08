@@ -23,6 +23,13 @@ export interface TerrainOptions {
 const SEGMENTS_DEFAULT = 1500;
 const SEG_WIDTH = 1.4;
 const FLAT_LEAD = 6;
+// Cars spawn at x≈2 dropping from y=5; a wide chassis or a leftward tip can land
+// vertices at x<0. Without ground there they fall into the void. Extend a flat
+// apron to the left of x=0 (plus a containing lip at the far end) so the initial
+// drop always has ground under it. Consumes no RNG → determinism is untouched and
+// the x≥0 track stays byte-identical.
+const LEFT_RUNWAY = 16; // meters of flat ground left of the spawn
+const LEFT_LIP_HEIGHT = 4; // far-left vertical wall so nothing rolls off the back
 
 export function generateTerrain(rng: Rng, opts: TerrainOptions): Terrain {
   // Two-layer terrain model — matches BoxCar2D's jagged feel.
@@ -88,6 +95,15 @@ export function generateTerrain(rng: Rng, opts: TerrainOptions): Terrain {
       obstacleCooldown = 6;
     }
   }
+
+  // Prepend the flat left apron (y=0, connects seamlessly to the flat lead at x=0)
+  // with a single vertical lip edge at the far-left end as a backstop.
+  const apronSegs = Math.ceil(LEFT_RUNWAY / SEG_WIDTH);
+  const leftX = -apronSegs * SEG_WIDTH;
+  const apron: TerrainPoint[] = [{ x: leftX, y: LEFT_LIP_HEIGHT }];
+  for (let i = apronSegs; i >= 1; i--) apron.push({ x: -i * SEG_WIDTH, y: 0 });
+  points.unshift(...apron);
+
   return { points, segmentWidth: SEG_WIDTH };
 }
 

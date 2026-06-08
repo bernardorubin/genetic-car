@@ -7,6 +7,7 @@ import {
   decodeArmLength,
   decodeChassisDensity,
   decodeChassisRadius,
+  decodeMotorTorque,
   decodeWheelDensity,
   decodeWheelRadius,
   type Genome,
@@ -42,7 +43,13 @@ export interface Car {
 const MOTOR_SPEED = -22;
 const MOTOR_TORQUE = 150;
 
-export function buildCar(world: World, genome: Genome, originX: number, originY: number): Car {
+export function buildCar(
+  world: World,
+  genome: Genome,
+  originX: number,
+  originY: number,
+  varyTorque = true,
+): Car {
   const localVerts: Vec2[] = [];
   for (let i = 0; i < CHASSIS_VERTICES; i++) {
     const r = decodeChassisRadius(genome.chassis[i]);
@@ -105,12 +112,16 @@ export function buildCar(world: World, genome: Genome, originX: number, originY:
       filterGroupIndex: -1,
     });
 
+    // Torque is either evolved per-wheel (varyTorque) or the uniform legacy constant.
+    // Motor speed stays constant either way so improvements still come from morphology
+    // + drivetrain, not evolved top-end gearing.
+    const maxMotorTorque = varyTorque ? decodeMotorTorque(genome.wheelTorque[w]) : MOTOR_TORQUE;
     const joint = world.createJoint(
       new RevoluteJoint(
         {
           enableMotor: true,
           motorSpeed: MOTOR_SPEED,
-          maxMotorTorque: MOTOR_TORQUE,
+          maxMotorTorque,
         },
         chassis,
         wheelBody,

@@ -23,6 +23,8 @@ export interface Genome {
   wheelSpring: Float32Array;
   /** length MAX_WHEELS, in [0,1] — suspension damping ratio */
   wheelDamping: Float32Array;
+  /** length MAX_WHEELS, in [0,1] — per-wheel motor torque (only used when varyTorque is on) */
+  wheelTorque: Float32Array;
   /** in [0,1] — chassis density */
   chassisDensity: number;
 }
@@ -53,6 +55,13 @@ export const SPRING_HZ_MAX = 10;
 export const DAMPING_MIN = 0.25;
 export const DAMPING_MAX = 0.85;
 
+// Per-wheel motor torque (N·m). Only consulted when the `varyTorque` toggle is on;
+// otherwise every wheel runs the uniform legacy constant (150, see car.ts MOTOR_TORQUE).
+// The legacy 150 sits exactly at gene value 0.45 — used to backfill pre-torque saves.
+export const MOTOR_TORQUE_MIN = 60;
+export const MOTOR_TORQUE_MAX = 260;
+export const DEFAULT_TORQUE_GENE = 0.45;
+
 /** Probability a fresh wheel slot starts active. ~50% biases toward 2-wheelers
  * at gen 0 with enough variance for 1/3/4-wheeler discovery. */
 const INITIAL_WHEEL_ACTIVE_P = 0.5;
@@ -80,6 +89,7 @@ export function randomGenome(rng: Rng): Genome {
   const wheelArm = new Float32Array(MAX_WHEELS);
   const wheelSpring = new Float32Array(MAX_WHEELS);
   const wheelDamping = new Float32Array(MAX_WHEELS);
+  const wheelTorque = new Float32Array(MAX_WHEELS);
   for (let i = 0; i < MAX_WHEELS; i++) {
     // Wheels also bimodal so gen-0 has cars with very small AND very big wheels.
     wheelRadii[i] = bimodalSample(rng);
@@ -90,6 +100,7 @@ export function randomGenome(rng: Rng): Genome {
     wheelArm[i] = rng() * 0.7;
     wheelSpring[i] = rng();
     wheelDamping[i] = rng();
+    wheelTorque[i] = rng();
   }
   const g: Genome = {
     chassis,
@@ -100,6 +111,7 @@ export function randomGenome(rng: Rng): Genome {
     wheelArm,
     wheelSpring,
     wheelDamping,
+    wheelTorque,
     chassisDensity: rng(),
   };
   ensureValid(g);
@@ -140,6 +152,9 @@ export function decodeSpringHz(g: number): number {
 }
 export function decodeDamping(g: number): number {
   return DAMPING_MIN + g * (DAMPING_MAX - DAMPING_MIN);
+}
+export function decodeMotorTorque(g: number): number {
+  return MOTOR_TORQUE_MIN + g * (MOTOR_TORQUE_MAX - MOTOR_TORQUE_MIN);
 }
 
 export function chassisVertexAngle(i: number): number {

@@ -1,8 +1,9 @@
 // All-time best genomes across all sessions. Tops out at HALL_SIZE entries,
-// sorted descending by score. Stored as serialized genomes so they survive
-// localStorage round-trips and v3 schema is preserved.
+// sorted descending by score. Stored un-versioned (shared across genome schema
+// versions): fromSerialized backfills any genes added after an entry was saved
+// (e.g. wheelTorque) so old replays keep behaving like the build that recorded them.
 
-import type { Genome } from './genome';
+import { DEFAULT_TORQUE_GENE, MAX_WHEELS, type Genome } from './genome';
 
 const KEY = 'genetic-cars:hall-of-fame:v1';
 const HALL_SIZE = 8;
@@ -16,6 +17,7 @@ interface SerializedGenome {
   wheelArm: number[];
   wheelSpring: number[];
   wheelDamping: number[];
+  wheelTorque: number[];
   chassisDensity: number;
 }
 
@@ -47,6 +49,7 @@ function toSerialized(g: Genome): SerializedGenome {
     wheelArm: Array.from(g.wheelArm),
     wheelSpring: Array.from(g.wheelSpring),
     wheelDamping: Array.from(g.wheelDamping),
+    wheelTorque: Array.from(g.wheelTorque),
     chassisDensity: g.chassisDensity,
   };
 }
@@ -61,6 +64,10 @@ function fromSerialized(s: SerializedGenome): Genome {
     wheelArm: Float32Array.from(s.wheelArm),
     wheelSpring: Float32Array.from(s.wheelSpring),
     wheelDamping: Float32Array.from(s.wheelDamping),
+    // Backfill entries saved before the torque gene existed with the legacy constant.
+    wheelTorque: Float32Array.from(
+      s.wheelTorque ?? new Array(MAX_WHEELS).fill(DEFAULT_TORQUE_GENE),
+    ),
     chassisDensity: s.chassisDensity,
   };
 }

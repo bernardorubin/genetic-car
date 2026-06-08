@@ -38,6 +38,8 @@ export interface SimSettings {
   obstacleDensity: number;
   /** seconds; null = no time cap (stall detector still ends idle gens) */
   maxGenSeconds: number | null;
+  /** when true, each wheel evolves its own motor torque; off = uniform legacy constant */
+  varyTorque: boolean;
   seed: string;
   render: boolean;
 }
@@ -68,6 +70,7 @@ export const DEFAULT_SETTINGS: SimSettings = {
   maxSlope: 0.5,
   obstacleDensity: 0.06,
   maxGenSeconds: null,
+  varyTorque: true,
   seed: '',
   render: true,
 };

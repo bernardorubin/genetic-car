@@ -68,6 +68,7 @@ function bootstrapInitialState(): {
         maxSlope: auto.maxSlope,
         obstacleDensity: auto.obstacleDensity,
         maxGenSeconds: auto.maxGenSeconds,
+        varyTorque: auto.varyTorque,
       },
       hydrate: auto,
     };
@@ -124,6 +125,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
       maxSlope: settings.maxSlope,
       obstacleDensity: settings.obstacleDensity,
       maxGenSeconds: cur.maxGenSeconds,
+      varyTorque: cur.varyTorque,
       ga: {
         mutationRate: cur.mutationRate,
         mutationSize: cur.mutationSize,
@@ -180,6 +182,17 @@ export function SimProvider({ children }: { children: ReactNode }) {
     const pop = populationRef.current;
     if (pop) pop.opts.maxGenSeconds = settings.maxGenSeconds;
   }, [settings.maxGenSeconds]);
+
+  // Flip the torque-evolution rule live without discarding the population. Skip the
+  // initial mount so we don't rebuild the freshly-created (or just-hydrated) sim.
+  const varyTorqueMountedRef = useRef(false);
+  useEffect(() => {
+    if (!varyTorqueMountedRef.current) {
+      varyTorqueMountedRef.current = true;
+      return;
+    }
+    populationRef.current?.applyVaryTorque(settings.varyTorque);
+  }, [settings.varyTorque]);
 
   // Sim loop. Runs whether or not the canvas is rendering, so generations
   // keep ticking in "fast" mode where the canvas is blank.
